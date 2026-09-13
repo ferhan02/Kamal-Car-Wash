@@ -1,0 +1,269 @@
+/* =========================
+   GOOGLE FONTS
+========================= */
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap');
+
+/* =========================
+   GLOBAL RESET
+========================= */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* =========================
+   BODY
+========================= */
+body {
+    background: #eaf2fb;
+    font-family: 'Poppins', sans-serif;
+    color: #1f2a44;
+}
+
+/* =========================
+   TOP BAR
+========================= */
+.top-bar {
+    background: #6d8fb8;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 20px;
+    font-size: 13px;
+    align-items: center;
+}
+
+/* =========================
+   HEADER
+========================= */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 35px;
+    background: #b7cde6;
+}
+
+/* =========================
+   LOGO SECTION
+========================= */
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    /* 🔥 IMPORTANT FIX: prevents oversized image stretching layout */
+    max-height: 70px;
+    overflow: hidden;
+}
+
+/* =========================
+   LOGO (FORCE HARD LIMIT)
+   THIS IS THE REAL FIX 🔥
+========================= */
+.logo {
+    width: 45px !important;
+    height: 45px !important;
+    max-width: 45px !important;
+    max-height: 45px !important;
+    object-fit: contain !important;
+    display: block !important;
+}
+
+/* =========================
+   BRAND TEXT
+========================= */
+.brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+/* TITLE */
+.brand-text h1 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #000;
+}
+
+/* TAGLINE */
+.brand-text span {
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    color: #1f2a44;
+}
+
+/* =========================
+   NAVBAR
+========================= */
+.nav {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.nav a {
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #1f2a44;
+    padding: 6px 10px;
+    border-radius: 5px;
+    transition: 0.2s ease;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.nav a:hover {
+    background: #2f5aa8;
+    color: white;
+}
+
+/* =========================
+   HERO BASE
+========================= */
+.hero {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: white;
+}
+
+/* HERO OVERLAY */
+.hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+}
+
+.hero-content {
+    position: relative;
+    z-index: 2;
+}
+
+/* HERO TEXT */
+.hero-content h1 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 60px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.hero-content h2 {
+    font-family: 'Poppins', sans-serif;
+    font-size: 28px;
+    font-weight: 500;
+}
+
+.hero-content p {
+    font-size: 18px;
+    margin-top: 10px;
+}
+
+/* =========================
+   BUTTONS
+========================= */
+.btn {
+    padding: 12px 25px;
+    border-radius: 25px;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+    font-family: 'Poppins', sans-serif;
+}
+
+.btn-primary {
+    background: #2f5aa8;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #1f3f7a;
+}
+
+/* =========================
+   INPUTS
+========================= */
+.input-box {
+    margin-bottom: 15px;
+}
+
+.input-box input,
+.input-box select,
+.input-box textarea {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-bottom: 2px solid #ccc;
+    outline: none;
+    background: transparent;
+    font-family: 'Poppins', sans-serif;
+}
+
+.input-box input:focus,
+.input-box select:focus,
+.input-box textarea:focus {
+    border-bottom: 2px solid #4f8cff;
+}
+
+/* =========================
+   CARDS
+========================= */
+.card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    padding: 20px;
+}
+
+/* =========================
+   FOOTER
+========================= */
+.footer {
+    display: flex;
+    justify-content: space-around;
+    background: #1f2a44;
+    color: white;
+    padding: 40px;
+}
+
+.footer-box h3 {
+    margin-bottom: 10px;
+    font-family: 'Oswald', sans-serif;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+@media (max-width: 768px) {
+
+    .header {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+
+    .nav {
+        justify-content: center;
+    }
+
+    .hero-content h1 {
+        font-size: 35px;
+    }
+
+    .footer {
+        flex-direction: column;
+        text-align: center;
+        gap: 20px;
+    }
+}
