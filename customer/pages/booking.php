@@ -1,241 +1,351 @@
 <?php
 session_start();
-include("../../config.php");
+require_once "../../config.php";
 
-if(!isset($_SESSION['cust_id'])){
-    echo "<script>alert('Please login first'); window.location='../../auth/cust_login.php';</script>";
+if (!isset($_SESSION['cust_id'])) {
+    header("Location: ../../auth/cust_login.php");
     exit();
 }
 
-$cust_id = $_SESSION['cust_id'];
-
+$custId = (int) $_SESSION['cust_id'];
 $slots = ["08:00", "09:00", "10:00", "11:00", "12:00", "14:00", "15:00", "16:00", "17:00"];
+$selectedDate = trim($_GET['date'] ?? '');
+$bookedSlots = [];
+$dateError = '';
 
-$selected_date = $_GET['date'] ?? "";
-$booked_slots = [];
-
-if($selected_date != ""){
-    $stmt = $conn->prepare("SELECT TIME_FORMAT(service_time, '%H:%i') AS booked_time 
-                            FROM service 
-                            WHERE service_date = ? 
-                            AND service_status != 'Cancelled'");
-    $stmt->execute([$selected_date]);
-    $booked_slots = $stmt->fetchAll(PDO::FETCH_COLUMN);
+if ($selectedDate !== '') {
+    $dateObject = DateTime::createFromFormat('Y-m-d', $selectedDate);
+    if (!$dateObject || $dateObject->format('Y-m-d') !== $selectedDate) {
+        $dateError = 'Please choose a valid booking date.';
+        $selectedDate = '';
+    } elseif ($selectedDate < date('Y-m-d')) {
+        $dateError = 'Past dates cannot be booked.';
+    } elseif (date('N', strtotime($selectedDate)) === '7') {
+        $dateError = 'Kamal Car Wash is closed on Sundays. Please choose Monday to Saturday.';
+    } else {
+        $stmt = $conn->prepare("
+            SELECT TIME_FORMAT(service_time, '%H:%i')
+            FROM service
+            WHERE service_date = ?
+              AND service_status <> 'Cancelled'
+        ");
+        $stmt->execute([$selectedDate]);
+        $bookedSlots = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
 }
 
-$vehicle_stmt = $conn->prepare("SELECT * FROM vehicle WHERE cust_id = ?");
-$vehicle_stmt->execute([$cust_id]);
-$vehicles = $vehicle_stmt->fetchAll(PDO::FETCH_ASSOC);
+$vehicleStmt = $conn->prepare("SELECT * FROM vehicle WHERE cust_id = ? ORDER BY vehicle_platenum ASC");
+$vehicleStmt->execute([$custId]);
+$vehicles = $vehicleStmt->fetchAll();
 
-$package_basic = $conn->query("SELECT * FROM package WHERE package_type = 1")->fetchAll(PDO::FETCH_ASSOC);
-$package_deluxe = $conn->query("SELECT * FROM package WHERE package_type = 2")->fetchAll(PDO::FETCH_ASSOC);
-$package_premium = $conn->query("SELECT * FROM package WHERE package_type = 3")->fetchAll(PDO::FETCH_ASSOC);
+$packageStmt = $conn->query("SELECT * FROM package ORDER BY package_type ASC, package_price ASC");
+$packages = $packageStmt->fetchAll();
+
+$groupedPackages = [1 => [], 2 => [], 3 => []];
+foreach ($packages as $package) {
+    $type = (int) $package['package_type'];
+    if (!isset($groupedPackages[$type])) $groupedPackages[$type] = [];
+    $groupedPackages[$type][] = $package;
+}
+
+$pageTitle = "Book a Wash";
+include "../includes/header.php";
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Booking | Kamal Car Wash</title>
-<link rel="stylesheet" href="../../css/style.css">
-
 <style>
-body{margin:0;background:#eaf2fb;font-family:Arial,sans-serif;}
-.booking-hero{
-    height:45vh;
-    background:url("../../images/background1.jpg") center/cover no-repeat;
-    display:flex;justify-content:center;align-items:center;
-    text-align:center;color:white;position:relative;
+.booking-hero {
+    position: relative;
+    min-height: 300px;
+    display: grid;
+    align-items: end;
+    overflow: hidden;
+    background:
+        linear-gradient(90deg, rgba(8, 25, 42, .86), rgba(8, 25, 42, .46)),
+        url("../../images/hero.jpg") center 58%/cover no-repeat;
+    color: #fff;
 }
-.booking-hero::after{content:"";position:absolute;inset:0;background:rgba(0,0,0,0.55);}
-.hero-text{position:relative;z-index:2;}
-.hero-text h1{font-size:40px;margin-bottom:10px;}
-.booking-section{display:flex;justify-content:center;padding:60px 20px;}
-.booking-card{
-    width:900px;background:white;border-radius:15px;
-    display:flex;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.2);
+.booking-hero .container { position: relative; z-index: 2; padding-bottom: 48px; }
+.booking-hero h1 {
+    margin-top: 9px;
+    max-width: 700px;
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(2.5rem, 5vw, 4.4rem);
+    line-height: 1;
 }
-.booking-left{
-    flex:1;background:#2f5aa8;display:flex;
-    justify-content:center;align-items:center;
+.booking-hero p { max-width: 600px; margin-top: 12px; color: rgba(255,255,255,.72); }
+
+.booking-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 24px;
+    align-items: start;
 }
-.booking-left img{width:230px;}
-.booking-right{flex:1;padding:40px;}
-.booking-title{font-size:24px;font-weight:bold;color:#2f5aa8;margin-bottom:20px;}
-.input-box{margin-bottom:15px;}
-.input-box input,.input-box select{
-    width:100%;padding:11px;border:none;
-    border-bottom:2px solid #ccc;outline:none;background:white;
+.booking-card { padding: 28px; }
+.booking-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 24px;
 }
-.input-box input:focus,.input-box select:focus{border-bottom:2px solid #4f8cff;}
-.book-btn{
-    width:100%;padding:12px;margin-top:10px;border:none;
-    background:#2f5aa8;color:white;font-weight:bold;
-    border-radius:25px;cursor:pointer;
+.booking-card-header h2 { color: var(--heading); font-size: 1.3rem; }
+.booking-card-header p { margin-top: 5px; color: var(--text-soft); font-size: .85rem; }
+
+.step-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: .7rem;
+    font-weight: 800;
+    white-space: nowrap;
 }
-.book-btn:hover{background:#1f3f7a;}
-.footer{
-    display:flex;justify-content:space-around;background:#1f2a44;
-    color:white;padding:40px;margin-top:40px;
+.date-form { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+.booking-form { display: grid; gap: 18px; margin-top: 24px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+.slot-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 9px;
+    margin-top: 8px;
+}
+.slot-option { position: relative; }
+.slot-option input { position: absolute; opacity: 0; pointer-events: none; }
+.slot-label {
+    display: flex;
+    min-height: 45px;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-size: .82rem;
+    font-weight: 700;
+    transition: .18s ease;
+}
+.slot-option input:checked + .slot-label {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 10%, transparent);
+}
+.slot-label:hover { border-color: var(--primary); }
+.slot-option.unavailable .slot-label {
+    cursor: not-allowed;
+    opacity: .45;
+    text-decoration: line-through;
+}
+
+.package-groups { display: grid; gap: 12px; }
+.package-type-group {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+}
+.package-type-label {
+    padding: 9px 12px;
+    background: var(--surface-2);
+    color: var(--text-soft);
+    font-size: .7rem;
+    font-weight: 800;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+}
+.package-radio {
+    position: relative;
+    display: block;
+    border-top: 1px solid var(--border);
+}
+.package-radio:first-of-type { border-top: 0; }
+.package-radio input { position: absolute; opacity: 0; pointer-events: none; }
+.package-radio-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 13px 14px;
+    cursor: pointer;
+    transition: background-color .18s ease;
+}
+.package-radio-content:hover { background: var(--surface-2); }
+.package-radio input:checked + .package-radio-content {
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+.package-radio-title { font-size: .86rem; font-weight: 700; }
+.package-radio-price { white-space: nowrap; font-size: .85rem; font-weight: 800; }
+
+.booking-side {
+    position: sticky;
+    top: 128px;
+    display: grid;
+    gap: 14px;
+}
+.side-card { padding: 22px; }
+.side-card h3 { color: var(--heading); font-size: 1rem; }
+.side-card p { margin-top: 7px; color: var(--text-soft); font-size: .82rem; }
+.side-list { display: grid; gap: 11px; margin-top: 17px; list-style: none; }
+.side-list li { display: flex; gap: 10px; color: var(--text-soft); font-size: .81rem; }
+.side-list i { margin-top: 4px; color: var(--primary); }
+.reserve-visual {
+    display: grid;
+    place-items: center;
+    min-height: 240px;
+    padding: 20px;
+    overflow: hidden;
+    background: linear-gradient(145deg, var(--primary-soft), var(--surface));
+}
+.reserve-visual img { width: min(210px, 85%); filter: drop-shadow(0 15px 22px rgba(0,0,0,.12)); }
+
+@media (max-width: 900px) {
+    .booking-layout { grid-template-columns: 1fr; }
+    .booking-side { position: static; grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 650px) {
+    .booking-card { padding: 20px; }
+    .date-form, .form-grid { grid-template-columns: 1fr; }
+    .slot-grid { grid-template-columns: repeat(2, 1fr); }
+    .booking-side { grid-template-columns: 1fr; }
+    .reserve-visual { display: none; }
 }
 </style>
 
-<script>
-function showPackages(){
-    let type = document.getElementById("package_type").value;
-    let packageSelect = document.getElementById("package_id");
-    let options = document.querySelectorAll(".package-option");
-
-    packageSelect.value = "";
-
-    options.forEach(function(option){
-        option.style.display = "none";
-        if(option.classList.contains(type)){
-            option.style.display = "block";
-        }
-    });
-}
-
-window.onload = showPackages;
-</script>
-</head>
-
-<body>
-
-<header class="header">
-    <div class="logo-section">
-        <img src="../../images/logo.png" class="logo">
-        <div>
-            <h1>KAMAL CAR WASH</h1>
-            <span>Online Booking System</span>
-        </div>
-    </div>
-
-    <nav class="nav">
-        <a href="cust_home.php">HOME</a>
-        <a href="booking.php">BOOKING</a>
-        <a href="vehicle.php">VEHICLE</a>
-        <a href="../../auth/cust_login.php">LOGOUT</a>
-    </nav>
-</header>
-
 <section class="booking-hero">
-    <div class="hero-text">
-        <h1>Online Reservation</h1>
-        <p>Skip the queue and book your car wash instantly</p>
+    <div class="container">
+        <span class="eyebrow" style="color:#b9d5ee;"><i class="fa-solid fa-calendar-check"></i> Online reservation</span>
+        <h1>Pick a time that works for you.</h1>
+        <p>Choose your registered vehicle, an available time slot and the wash package you want before confirming.</p>
     </div>
 </section>
 
-<section class="booking-section">
-    <div class="booking-card">
-
-        <div class="booking-left">
-            <img src="../../images/reserve.png" alt="Reserve">
-        </div>
-
-        <div class="booking-right">
-            <div class="booking-title">Check Available Slot</div>
-
-            <form method="GET">
-                <div class="input-box">
-                    <input type="date" name="date" value="<?php echo $selected_date; ?>" required>
+<section class="section">
+    <div class="container booking-layout">
+        <main class="card booking-card">
+            <div class="booking-card-header">
+                <div>
+                    <h2>Reservation details</h2>
+                    <p>Start by choosing the date. Available slots are checked against existing active bookings.</p>
                 </div>
+                <span class="step-chip"><i class="fa-solid fa-1"></i> Select date</span>
+            </div>
 
-                <button class="book-btn" type="submit">Check Available Time</button>
+            <?php if ($dateError): ?>
+                <div class="alert alert-error" style="margin-bottom:16px;">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <span><?= htmlspecialchars($dateError) ?></span>
+                </div>
+            <?php endif; ?>
+
+            <form class="date-form" method="GET">
+                <div class="field">
+                    <label for="date">Booking date</label>
+                    <input class="input" id="date" type="date" name="date"
+                           min="<?= date('Y-m-d') ?>" value="<?= htmlspecialchars($selectedDate) ?>" required>
+                </div>
+                <button class="btn btn-secondary" type="submit" style="align-self:end;">
+                    <i class="fa-solid fa-magnifying-glass"></i> Check slots
+                </button>
             </form>
 
-            <?php if($selected_date != "") { ?>
+            <?php if ($selectedDate !== '' && !$dateError): ?>
+                <?php if (!$vehicles): ?>
+                    <div class="alert alert-warning" style="margin-top:22px;">
+                        <i class="fa-solid fa-car-side"></i>
+                        <div>
+                            <strong>No registered vehicle found.</strong><br>
+                            Add a vehicle before creating a reservation.
+                            <a href="vehicle.php" style="font-weight:800;">Add vehicle</a>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <form class="booking-form" method="POST" action="booking_details.php">
+                        <input type="hidden" name="service_date" value="<?= htmlspecialchars($selectedDate) ?>">
 
-            <form method="POST" action="booking_details.php">
+                        <div class="form-grid">
+                            <div class="field">
+                                <label for="vehicle_id">Vehicle</label>
+                                <select class="select" id="vehicle_id" name="vehicle_id" required>
+                                    <option value="">Select your vehicle</option>
+                                    <?php foreach ($vehicles as $vehicle): ?>
+                                        <option value="<?= (int)$vehicle['vehicle_id'] ?>">
+                                            <?= htmlspecialchars($vehicle['vehicle_platenum'] . ' · ' . $vehicle['vehicle_brand'] . ' ' . $vehicle['vehicle_model']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
 
-                <input type="hidden" name="service_date" value="<?php echo $selected_date; ?>">
+                            <div class="field">
+                                <label>Available time</label>
+                                <div class="helper-text">Closed from 1:00 PM–2:00 PM.</div>
+                            </div>
+                        </div>
 
-                <div class="input-box">
-                    <select name="vehicle_id" required>
-                        <option value="">Select Vehicle</option>
-                        <?php foreach($vehicles as $v){ ?>
-                            <option value="<?php echo $v['vehicle_id']; ?>">
-                                <?php echo $v['vehicle_platenum']; ?> -
-                                <?php echo $v['vehicle_brand']; ?>
-                                <?php echo $v['vehicle_model']; ?>
-                                (<?php echo $v['vehicle_type']; ?>)
-                            </option>
-                        <?php } ?>
-                    </select>
-                </div>
+                        <div class="slot-grid" aria-label="Available time slots">
+                            <?php foreach ($slots as $slot): ?>
+                                <?php $isBooked = in_array($slot, $bookedSlots, true); ?>
+                                <label class="slot-option <?= $isBooked ? 'unavailable' : '' ?>">
+                                    <input type="radio" name="service_time" value="<?= $slot ?>" <?= $isBooked ? 'disabled' : '' ?> required>
+                                    <span class="slot-label">
+                                        <i class="fa-regular fa-clock"></i>
+                                        <?= date('g:i A', strtotime($slot)) ?>
+                                    </span>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
 
-                <div class="input-box">
-                    <select name="service_time" required>
-                        <option value="">Select Available Time</option>
-                        <?php foreach($slots as $slot){ ?>
-                            <?php if(!in_array($slot, $booked_slots)){ ?>
-                                <option value="<?php echo $slot; ?>"><?php echo $slot; ?></option>
-                            <?php } ?>
-                        <?php } ?>
-                    </select>
-                </div>
+                        <div class="field">
+                            <label>Package</label>
+                            <div class="package-groups">
+                                <?php
+                                $typeNames = [1 => 'Basic', 2 => 'Deluxe', 3 => 'Premium'];
+                                foreach ($typeNames as $typeId => $typeName):
+                                    if (empty($groupedPackages[$typeId])) continue;
+                                ?>
+                                    <div class="package-type-group">
+                                        <div class="package-type-label"><?= $typeName ?></div>
+                                        <?php foreach ($groupedPackages[$typeId] as $package): ?>
+                                            <label class="package-radio">
+                                                <input type="radio" name="package_id" value="<?= (int)$package['package_id'] ?>" required>
+                                                <span class="package-radio-content">
+                                                    <span class="package-radio-title"><?= htmlspecialchars($package['package_name']) ?></span>
+                                                    <span class="package-radio-price">RM<?= number_format((float)$package['package_price'], 2) ?></span>
+                                                </span>
+                                            </label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
 
-                <div class="input-box">
-                    <select name="package_type" id="package_type" required onchange="showPackages()">
-                        <option value="">Select Package Type</option>
-                        <option value="basic">Basic</option>
-                        <option value="deluxe">Deluxe</option>
-                        <option value="premium">Premium</option>
-                    </select>
-                </div>
+                        <button class="btn btn-primary" type="submit" style="justify-self:start;">
+                            Review booking <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </form>
+                <?php endif; ?>
+            <?php endif; ?>
+        </main>
 
-                <div class="input-box">
-                    <select name="package_id" id="package_id" required>
-                        <option value="">Select Package</option>
-
-                        <?php foreach($package_basic as $p){ ?>
-                            <option class="package-option basic" value="<?php echo $p['package_id']; ?>">
-                                <?php echo $p['package_name']; ?> - RM<?php echo $p['package_price']; ?>
-                            </option>
-                        <?php } ?>
-
-                        <?php foreach($package_deluxe as $p){ ?>
-                            <option class="package-option deluxe" value="<?php echo $p['package_id']; ?>">
-                                <?php echo $p['package_name']; ?> - RM<?php echo $p['package_price']; ?>
-                            </option>
-                        <?php } ?>
-
-                        <?php foreach($package_premium as $p){ ?>
-                            <option class="package-option premium" value="<?php echo $p['package_id']; ?>">
-                                <?php echo $p['package_name']; ?> - RM<?php echo $p['package_price']; ?>
-                            </option>
-                        <?php } ?>
-                    </select>
-                </div>
-
-                <button class="book-btn" type="submit" name="continue">Continue</button>
-            </form>
-
-            <?php } ?>
-
-        </div>
+        <aside class="booking-side">
+            <div class="card reserve-visual">
+                <img src="../../images/reserve.png" alt="Car wash reservation illustration">
+            </div>
+            <div class="card side-card">
+                <h3><i class="fa-solid fa-circle-info" style="color:var(--primary);"></i> Before you book</h3>
+                <ul class="side-list">
+                    <li><i class="fa-solid fa-check"></i><span>Only active bookings block a time slot.</span></li>
+                    <li><i class="fa-solid fa-check"></i><span>Sunday is excluded because the business is closed.</span></li>
+                    <li><i class="fa-solid fa-check"></i><span>You can review the full booking before it is saved.</span></li>
+                </ul>
+            </div>
+        </aside>
     </div>
 </section>
 
-<footer class="footer">
-    <div>
-        <h3>Opening Times</h3>
-        <p>Mon-Fri: 8AM - 6PM</p>
-        <p>Saturday: 8AM - 6PM</p>
-        <p>Sunday: Closed</p>
-    </div>
-
-    <div>
-        <h3>Kamal Car Wash</h3>
-        <p>Drive clean, drive proud ✨</p>
-    </div>
-
-    <div>
-        <h3>Contact Info</h3>
-        <p>Seremban, Negeri Sembilan</p>
-        <p>Email: kamalcarwash@gmail.com</p>
-    </div>
-</footer>
-
-</body>
-</html>
+<?php include "../includes/footer.php"; ?>

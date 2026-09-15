@@ -1,28 +1,43 @@
+<footer class="site-footer">
+    <div class="container">
+        <div>
+            <div class="footer-brand">
+                <img src="../../images/logo.png" alt="">
+                <div>
+                    <div class="footer-title">KAMAL CAR WASH</div>
+                    <div class="footer-copy">Clean cars, simple bookings, dependable service.</div>
+                </div>
+            </div>
+            <p class="footer-copy">
+                Professional car-care service in Seremban with a customer portal built for quick reservations
+                and easy vehicle management.
+            </p>
+        </div>
 
-<!-- FOOTER -->
-<footer class="customer-footer">
-    <p>&copy; <?php echo date("Y"); ?> CARWASH KAMAL</p>
-    <p>More Than a Wash, It's a Revival.</p>
+        <div>
+            <div class="footer-heading">Opening Hours</div>
+            <ul class="footer-list">
+                <li>Monday–Friday: 8:00 AM–6:00 PM</li>
+                <li>Saturday: 8:00 AM–6:00 PM</li>
+                <li>Sunday: Closed</li>
+            </ul>
+        </div>
+
+        <div>
+            <div class="footer-heading">Contact</div>
+            <ul class="footer-list">
+                <li><i class="fa-solid fa-location-dot"></i> Seremban, Negeri Sembilan</li>
+                <li><a href="mailto:kamalcarwash@gmail.com"><i class="fa-solid fa-envelope"></i> kamalcarwash@gmail.com</a></li>
+                <li><a href="contact.php"><i class="fa-solid fa-message"></i> Contact us</a></li>
+            </ul>
+        </div>
+
+        <div class="footer-bottom">
+            <span>&copy; <?= date('Y') ?> Kamal Car Wash. All rights reserved.</span>
+            <span>More Than a Wash, It's a Revival.</span>
+        </div>
+    </div>
 </footer>
-
-<!-- NOTIFLIX JS -->
-<script src="../js/notiflix-aio-3.2.8.min.js"></script>
-
-<?php if(isset($_SESSION['success'])): ?>
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    Notiflix.Notify.success("<?= $_SESSION['success']; ?>");
-});
-</script>
-<?php unset($_SESSION['success']); endif; ?>
-
-<?php if(isset($_SESSION['error'])): ?>
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    Notiflix.Notify.failure("<?= $_SESSION['error']; ?>");
-});
-</script>
-<?php unset($_SESSION['error']); endif; ?>
 
 </body>
 </html>
