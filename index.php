@@ -127,7 +127,10 @@
     .feature-card h3 { margin-top: 17px; color: var(--heading); font-size: 1rem; }
     .feature-card p { margin-top: 7px; color: var(--text-soft); font-size: .82rem; }
 
-    .portal-section { padding: 72px 0; background: var(--surface-2); }
+    .portal-section {
+        padding: 72px 0;
+        background: transparent;
+    }
     .portal-card {
         display: grid;
         grid-template-columns: 1fr .8fr;

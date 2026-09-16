@@ -20,76 +20,97 @@ $states = [
     'Penang', 'Perak', 'Perlis', 'Sabah', 'Sarawak', 'Selangor',
     'Terengganu', 'Kuala Lumpur', 'Putrajaya', 'Labuan'
 ];
+$fieldErrors = [];
+$error = '';
 if (isset($_POST['update_profile'])) {
     $name = trim($_POST['staff_name'] ?? '');
-    $email = trim($_POST['staff_email'] ?? '');
+    $email = strtolower(trim($_POST['staff_email'] ?? ''));
     $phone = trim($_POST['staff_phonenum'] ?? '');
-    $dob = $_POST['staff_dob'] ?? '';
-    $state = $_POST['staff_state'] ?? '';
-    $gender = (int)($_POST['staff_gender'] ?? 0);
+    $dob = trim($_POST['staff_dob'] ?? '');
+    $state = trim($_POST['staff_state'] ?? '');
+    $gender = $_POST['staff_gender'] ?? '';
     $croppedImage = trim($_POST['cropped_image'] ?? '');
-    $stmt = $conn->prepare('SELECT staff_id FROM staff WHERE staff_email=? AND staff_id<>?');
-    $stmt->execute([$email, $staff_id]);
-    if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $_SESSION['error'] = 'Enter a valid name and email.';
-    } elseif ($stmt->fetch()) {
-        $_SESSION['error'] = 'That email is already used by another staff account.';
-    } else{
-        $image = $staff['staff_image'] ? : 'uploads/default.png';
-        $newAbsolute = null;
-        $oldImage = $image;
-        if ($croppedImage !== '') {
-            if (strlen($croppedImage) > 4 * 1024 * 1024) {
-                $_SESSION['error'] = 'The cropped profile image is too large.';
-                header('Location: update_profile.php');
-                exit();
-            }
-            if (!preg_match('#^data:image/(jpeg|jpg|png|webp);base64,#i', $croppedImage)) {
-                $_SESSION['error'] = 'The selected profile image could not be processed.';
-                header('Location: update_profile.php');
-                exit();
-            }
+
+    if ($name === '') $fieldErrors['staff_name'] = 'Enter your full name.';
+    if ($email === '') {
+        $fieldErrors['staff_email'] = 'Enter your email address.';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $fieldErrors['staff_email'] = 'Enter a valid email address.';
+    }
+    if ($phone === '') $fieldErrors['staff_phonenum'] = 'Enter your phone number.';
+    if ($dob === '') $fieldErrors['staff_dob'] = 'Choose your date of birth.';
+    if (!in_array($state, $states, true)) $fieldErrors['staff_state'] = 'Choose a state from the list.';
+    if (!in_array((string) $gender, ['0', '1'], true)) $fieldErrors['staff_gender'] = 'Choose one gender option.';
+
+    if (!$fieldErrors) {
+        $stmt = $conn->prepare('SELECT staff_id FROM staff WHERE staff_email = ? AND staff_id <> ? LIMIT 1');
+        $stmt->execute([$email, $staff_id]);
+        if ($stmt->fetch()) $fieldErrors['staff_email'] = 'That email is already used by another staff account.';
+    }
+
+    $image = $staff['staff_image'] ?: 'uploads/default.png';
+    $newAbsolute = null;
+    $oldImage = $image;
+
+    if (!$fieldErrors && $croppedImage !== '') {
+        if (strlen($croppedImage) > 4 * 1024 * 1024) {
+            $fieldErrors['staff_image'] = 'The cropped profile image is too large.';
+        } elseif (!preg_match('#^data:image/(jpeg|jpg|png|webp);base64,#i', $croppedImage)) {
+            $fieldErrors['staff_image'] = 'The selected profile image could not be processed.';
+        } else {
             $binary = base64_decode(substr($croppedImage, strpos($croppedImage, ',') + 1), true);
             $info = $binary !== false ? @getimagesizefromstring($binary) : false;
             if (!$info || !in_array($info['mime'] ?? '', ['image/jpeg', 'image/png', 'image/webp'], true)) {
-                $_SESSION['error'] = 'Please use a JPG, PNG or WEBP image.';
-                header('Location: update_profile.php');
-                exit();
+                $fieldErrors['staff_image'] = 'Use a JPG, PNG or WEBP image.';
+            } else {
+                $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'][$info['mime']];
+                $folder = __DIR__ . '/../../images/uploads/staff/';
+                if (!is_dir($folder)) mkdir($folder, 0755, true);
+                $filename = 'staff_' . $staff_id . '_' . time() . '_' . bin2hex(random_bytes(3)) . '.' . $ext;
+                $newAbsolute = $folder . $filename;
+                if (file_put_contents($newAbsolute, $binary) === false) {
+                    $newAbsolute = null;
+                    $fieldErrors['staff_image'] = 'The profile image could not be saved.';
+                } else {
+                    $image = 'uploads/staff/' . $filename;
+                }
             }
-            $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'][$info['mime']];
-            $folder = __DIR__ . '/../../images/uploads/staff/';
-            if (!is_dir($folder))mkdir($folder, 0755, true);
-            $filename = 'staff_' . $staff_id . '_' . time() . '_' . bin2hex(random_bytes(3)) . '.' . $ext;
-            $newAbsolute = $folder . $filename;
-            if (file_put_contents($newAbsolute, $binary) === false) {
-                $_SESSION['error'] = 'The profile image could not be saved.';
-                header('Location: update_profile.php');
-                exit();
-            }
-            $image = 'uploads/staff/' . $filename;
-        }
-        try{
-            $stmt = $conn->prepare(
-    'UPDATE staff SET
-        staff_name = ?, staff_email = ?, staff_phonenum = ?, staff_dob = ?,
-        staff_state = ?, staff_gender = ?, staff_image = ?
-     WHERE staff_id = ?'
-);
-            $stmt->execute([$name, $email, $phone, $dob, $state, $gender, $image, $staff_id]);
-            $_SESSION['staff_name'] = $name;
-            $_SESSION['success'] = 'Profile updated successfully.';
-            if ($newAbsolute && $oldImage && str_starts_with($oldImage, 'uploads/staff/')) {
-                $oldAbsolute = __DIR__ . '/../../images/' . $oldImage;
-                if (is_file($oldAbsolute) && realpath($oldAbsolute) !== realpath($newAbsolute))@unlink($oldAbsolute);
-            }
-        } catch (Throwable $e) {
-            if ($newAbsolute && is_file($newAbsolute))@unlink($newAbsolute);
-            $_SESSION['error'] = 'Your profile could not be updated. Please try again.';
         }
     }
-    header('Location: update_profile.php');
-    exit();
+
+    if (!$fieldErrors) {
+        try {
+            $stmt = $conn->prepare(
+                'UPDATE staff SET
+                    staff_name = ?, staff_email = ?, staff_phonenum = ?, staff_dob = ?,
+                    staff_state = ?, staff_gender = ?, staff_image = ?
+                 WHERE staff_id = ?'
+            );
+            $stmt->execute([$name, $email, $phone, $dob, $state, (int) $gender, $image, $staff_id]);
+            $_SESSION['staff_name'] = $name;
+            $_SESSION['success'] = 'Profile updated successfully.';
+
+            if ($newAbsolute && $oldImage && str_starts_with($oldImage, 'uploads/staff/')) {
+                $oldAbsolute = __DIR__ . '/../../images/' . $oldImage;
+                if (is_file($oldAbsolute) && realpath($oldAbsolute) !== realpath($newAbsolute)) @unlink($oldAbsolute);
+            }
+
+            header('Location: update_profile.php');
+            exit();
+        } catch (Throwable $e) {
+            if ($newAbsolute && is_file($newAbsolute)) @unlink($newAbsolute);
+            $error = 'Your profile could not be updated. Please try again.';
+        }
+    }
 }
+
+$formStaff = $staff;
+if (isset($_POST['update_profile']) && ($fieldErrors || $error)) {
+    foreach (['staff_name', 'staff_email', 'staff_phonenum', 'staff_dob', 'staff_state', 'staff_gender'] as $key) {
+        if (array_key_exists($key, $_POST)) $formStaff[$key] = $_POST[$key];
+    }
+}
+
 $root_prefix = '../../';
 $page_title = 'Profile';
 include __DIR__ . '/../includes/head.php';
@@ -319,6 +340,9 @@ include __DIR__ . '/../includes/head.php';
             <a class="ios-btn ios-btn-secondary" href="change_password.php">
                 <i class="fa-solid fa-lock"></i> Change password</a>
         </div>
+        <?php if ($error): ?>
+            <div class="ios-toast error"><strong>Could not save changes</strong><span><?= kcw_h($error) ?></span></div>
+        <?php endif; ?>
         <section class="profile-layout">
             <aside class="ios-card identity-card">
                 <div class="avatar-wrap">
@@ -339,6 +363,9 @@ include __DIR__ . '/../includes/head.php';
                 </button>
             </div>
             <p class="photo-helper">Use the camera button to choose, crop and reposition your profile photo.</p>
+            <?php if (isset($fieldErrors['staff_image'])): ?>
+                <span class="kcw-field-error"><?= kcw_h($fieldErrors['staff_image']) ?></span>
+            <?php endif; ?>
             <h2><?= kcw_h($staff['staff_name']) ?></h2>
             <span class="role"><?= kcw_h($staff['staff_job']) ?></span>
             <div class="identity-meta">
@@ -360,39 +387,58 @@ include __DIR__ . '/../includes/head.php';
                 <input type="file" id="staffPhotoInput" accept="image/jpeg,image/png,image/webp" hidden>
                 <input type="hidden" name="cropped_image" id="croppedImage">
                 <div class="form-grid">
-                    <div class="ios-field">
-                        <label>Full name</label>
-                        <input class="ios-input" name="staff_name" value="<?= kcw_h($staff['staff_name']) ?>" required>
+                    <div class="ios-field<?= isset($fieldErrors['staff_name']) ? ' has-error' : '' ?>">
+                        <label for="staff_name">Full name</label>
+                        <input class="ios-input" id="staff_name" name="staff_name" value="<?= kcw_h($formStaff['staff_name']) ?>" required>
+                        <span class="kcw-field-error"><?= kcw_h($fieldErrors['staff_name'] ?? '') ?></span>
                     </div>
-                    <div class="ios-field">
-                        <label>Email</label>
-                        <input class="ios-input" type="email" name="staff_email" value="<?= kcw_h($staff['staff_email']) ?>" required>
+                    <div class="ios-field<?= isset($fieldErrors['staff_email']) ? ' has-error' : '' ?>">
+                        <label for="staff_email">Email</label>
+                        <input class="ios-input" id="staff_email" type="email" name="staff_email" value="<?= kcw_h($formStaff['staff_email']) ?>" required>
+                        <span class="kcw-field-error"><?= kcw_h($fieldErrors['staff_email'] ?? '') ?></span>
                     </div>
-                    <div class="ios-field">
-                        <label>Phone number</label>
-                        <input class="ios-input" name="staff_phonenum" inputmode="numeric" value="<?= kcw_h($staff['staff_phonenum']) ?>" required>
+                    <div class="ios-field<?= isset($fieldErrors['staff_phonenum']) ? ' has-error' : '' ?>">
+                        <label for="staff_phonenum">Phone number</label>
+                        <input class="ios-input" id="staff_phonenum" name="staff_phonenum" inputmode="numeric" value="<?= kcw_h($formStaff['staff_phonenum']) ?>" required>
                         <span class="ios-helper">The current database stores phone numbers as an integer.</span>
+                        <span class="kcw-field-error"><?= kcw_h($fieldErrors['staff_phonenum'] ?? '') ?></span>
                     </div>
-                    <div class="ios-field">
-                        <label>Date of birth</label>
-                        <input class="ios-input" type="date" name="staff_dob" value="<?= kcw_h($staff['staff_dob']) ?>" required>
+                    <div class="ios-field<?= isset($fieldErrors['staff_dob']) ? ' has-error' : '' ?>">
+                        <label for="staff_dob">Date of birth</label>
+                        <input class="ios-input" id="staff_dob" type="date" name="staff_dob" value="<?= kcw_h($formStaff['staff_dob']) ?>" required>
+                        <span class="kcw-field-error"><?= kcw_h($fieldErrors['staff_dob'] ?? '') ?></span>
                     </div>
-                    <div class="ios-field">
-                        <label>State</label>
-                        <select class="ios-select" name="staff_state" required>
-                            <?php foreach ($states as $s): ?>
-                                <option <?= $staff['staff_state']===$s?'selected':'' ?>>
-                                    <?= kcw_h($s) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+                    <div class="ios-field<?= isset($fieldErrors['staff_state']) ? ' has-error' : '' ?>">
+                        <label for="staff_state">State</label>
+                        <input
+                            class="ios-input"
+                            id="staff_state"
+                            name="staff_state"
+                            list="profile-state-options"
+                            autocomplete="address-level1"
+                            value="<?= kcw_h($formStaff['staff_state']) ?>"
+                            placeholder="Type or choose a state"
+                            required
+                        >
+                        <datalist id="profile-state-options">
+                            <?php foreach ($states as $s): ?><option value="<?= kcw_h($s) ?>"></option><?php endforeach; ?>
+                        </datalist>
+                        <span class="ios-helper">Type to search or open the list and scroll.</span>
+                        <span class="kcw-field-error"><?= kcw_h($fieldErrors['staff_state'] ?? '') ?></span>
                     </div>
-                    <div class="ios-field">
+                    <div class="ios-field<?= isset($fieldErrors['staff_gender']) ? ' has-error' : '' ?>">
                         <label>Gender</label>
-                        <select class="ios-select" name="staff_gender">
-                            <option value="0" <?= (int)$staff['staff_gender']===0?'selected':'' ?>>Male</option>
-                            <option value="1" <?= (int)$staff['staff_gender']===1?'selected':'' ?>>Female</option>
-                        </select>
+                        <div class="kcw-choice-grid">
+                            <label class="kcw-choice">
+                                <input type="radio" name="staff_gender" value="0" <?= (string) $formStaff['staff_gender'] === '0' ? 'checked' : '' ?> required>
+                                <span><i class="fa-solid fa-person"></i> Male</span>
+                            </label>
+                            <label class="kcw-choice">
+                                <input type="radio" name="staff_gender" value="1" <?= (string) $formStaff['staff_gender'] === '1' ? 'checked' : '' ?>>
+                                <span><i class="fa-solid fa-person-dress"></i> Female</span>
+                            </label>
+                        </div>
+                        <span class="kcw-field-error"><?= kcw_h($fieldErrors['staff_gender'] ?? '') ?></span>
                     </div>
                 </div>
                 <div class="form-actions">

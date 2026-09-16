@@ -10,6 +10,11 @@ if (!isset($_SESSION['cust_id'])) {
 $custId = (int) $_SESSION['cust_id'];
 $success = '';
 $error = '';
+$fieldErrors = [];
+$states = [
+    'Johor', 'Kedah', 'Kelantan', 'Melaka', 'Negeri Sembilan', 'Pahang', 'Penang', 'Perak',
+    'Perlis', 'Sabah', 'Sarawak', 'Selangor', 'Terengganu', 'Kuala Lumpur', 'Putrajaya', 'Labuan'
+];
 
 $stmt = $conn->prepare("SELECT * FROM customer WHERE cust_id = ?");
 $stmt->execute([$custId]);
@@ -39,91 +44,119 @@ if (isset($_POST['update_profile'])) {
     $state = trim($_POST['cust_state'] ?? '');
     $croppedImage = trim($_POST['cropped_image'] ?? '');
 
-    if ($name === '' || $dob === '' || $phone === '' || $email === '' || $username === '' || $state === '' || !in_array((string)$gender, ['0', '1'], true)) {
-        $error = 'Please complete every required profile field.';
+    if ($name === '') $fieldErrors['cust_name'] = 'Enter your full name.';
+    if ($dob === '') $fieldErrors['cust_dob'] = 'Choose your date of birth.';
+    if ($phone === '') $fieldErrors['cust_phonenum'] = 'Enter your phone number.';
+    if ($email === '') {
+        $fieldErrors['cust_email'] = 'Enter your email address.';
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $error = 'Please enter a valid email address.';
-    } elseif (strlen($name) > 50 || strlen($email) > 30 || strlen($username) > 50 || strlen($state) > 30) {
-        $error = 'One or more values are longer than the current database allows.';
-    } else {
-        $duplicate = $conn->prepare("\n            SELECT cust_id\n            FROM customer\n            WHERE (cust_email = ? OR cust_username = ?)\n              AND cust_id <> ?\n            LIMIT 1\n        ");
-        $duplicate->execute([$email, $username, $custId]);
+        $fieldErrors['cust_email'] = 'Enter a valid email address.';
+    }
+    if ($username === '') $fieldErrors['cust_username'] = 'Enter your username.';
+    if (!in_array((string) $gender, ['0', '1'], true)) $fieldErrors['cust_gender'] = 'Choose one gender option.';
+    if (!in_array($state, $states, true)) $fieldErrors['cust_state'] = 'Choose a state from the list.';
+    if (strlen($name) > 50) $fieldErrors['cust_name'] = 'Full name must be 50 characters or fewer.';
+    if (strlen($email) > 30) $fieldErrors['cust_email'] = 'Email must be 30 characters or fewer for the current database.';
+    if (strlen($username) > 50) $fieldErrors['cust_username'] = 'Username must be 50 characters or fewer.';
 
-        if ($duplicate->fetch()) {
-            $error = 'That email address or username is already used by another customer.';
+    if (!$fieldErrors) {
+        $emailCheck = $conn->prepare("SELECT cust_id FROM customer WHERE cust_email = ? AND cust_id <> ? LIMIT 1");
+        $emailCheck->execute([$email, $custId]);
+        $usernameCheck = $conn->prepare("SELECT cust_id FROM customer WHERE cust_username = ? AND cust_id <> ? LIMIT 1");
+        $usernameCheck->execute([$username, $custId]);
+
+        if ($emailCheck->fetch()) {
+            $fieldErrors['cust_email'] = 'That email is already used by another customer.';
+        } elseif ($usernameCheck->fetch()) {
+            $fieldErrors['cust_username'] = 'That username is already used by another customer.';
+        }
+    }
+
+    $newImageValue = $customer['cust_image'] ?? null;
+    $newImageAbsolutePath = null;
+    $oldImageValue = $customer['cust_image'] ?? null;
+
+    if (!$fieldErrors && $croppedImage !== '') {
+        if (strlen($croppedImage) > 4 * 1024 * 1024) {
+            $fieldErrors['cust_image'] = 'The cropped image is too large. Choose a smaller image.';
+        } elseif (!preg_match('#^data:image/(jpeg|jpg|png|webp);base64,#i', $croppedImage)) {
+            $fieldErrors['cust_image'] = 'The selected image could not be processed.';
         } else {
-            $newImageValue = $customer['cust_image'] ?? null;
-            $newImageAbsolutePath = null;
-            $oldImageValue = $customer['cust_image'] ?? null;
+            $base64 = substr($croppedImage, strpos($croppedImage, ',') + 1);
+            $binary = base64_decode($base64, true);
+            $imageInfo = $binary !== false ? @getimagesizefromstring($binary) : false;
 
-            if ($croppedImage !== '') {
-                if (strlen($croppedImage) > 4 * 1024 * 1024) {
-                    $error = 'The cropped profile image is too large. Please choose another image.';
-                } elseif (!preg_match('#^data:image/(jpeg|jpg|png|webp);base64,#i', $croppedImage, $matches)) {
-                    $error = 'The selected profile image could not be processed.';
+            if ($binary === false || $imageInfo === false) {
+                $fieldErrors['cust_image'] = 'The selected image is invalid.';
+            } else {
+                $mimeToExtension = [
+                    'image/jpeg' => 'jpg',
+                    'image/png' => 'png',
+                    'image/webp' => 'webp'
+                ];
+                $mime = $imageInfo['mime'] ?? '';
+
+                if (!isset($mimeToExtension[$mime])) {
+                    $fieldErrors['cust_image'] = 'Use a JPG, PNG or WEBP image.';
                 } else {
-                    $base64 = substr($croppedImage, strpos($croppedImage, ',') + 1);
-                    $binary = base64_decode($base64, true);
-                    $imageInfo = $binary !== false ? @getimagesizefromstring($binary) : false;
-
-                    if ($binary === false || $imageInfo === false) {
-                        $error = 'The selected profile image is invalid.';
+                    $uploadDir = '../../images/uploads/customer/';
+                    if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true)) {
+                        $fieldErrors['cust_image'] = 'The profile image folder could not be created.';
                     } else {
-                        $mimeToExtension = [
-                            'image/jpeg' => 'jpg',
-                            'image/png' => 'png',
-                            'image/webp' => 'webp'
-                        ];
-                        $mime = $imageInfo['mime'] ?? '';
-
-                        if (!isset($mimeToExtension[$mime])) {
-                            $error = 'Please use a JPG, PNG, or WEBP image.';
+                        $filename = 'customer_' . $custId . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $mimeToExtension[$mime];
+                        $newImageAbsolutePath = $uploadDir . $filename;
+                        if (file_put_contents($newImageAbsolutePath, $binary) === false) {
+                            $newImageAbsolutePath = null;
+                            $fieldErrors['cust_image'] = 'The profile image could not be saved.';
                         } else {
-                            $uploadDir = '../../images/uploads/customer/';
-                            if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true)) {
-                                $error = 'The profile image folder could not be created.';
-                            } else {
-                                $filename = 'customer_' . $custId . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $mimeToExtension[$mime];
-                                $newImageAbsolutePath = $uploadDir . $filename;
-                                if (file_put_contents($newImageAbsolutePath, $binary) === false) {
-                                    $newImageAbsolutePath = null;
-                                    $error = 'The profile image could not be saved.';
-                                } else {
-                                    $newImageValue = 'uploads/customer/' . $filename;
-                                }
-                            }
+                            $newImageValue = 'uploads/customer/' . $filename;
                         }
                     }
-                }
-            }
-
-            if ($error === '') {
-                try {
-                    $conn->beginTransaction();
-                    $update = $conn->prepare("\n                        UPDATE customer\n                        SET cust_name = ?, cust_dob = ?, cust_phonenum = ?, cust_email = ?,\n                            cust_username = ?, cust_gender = ?, cust_state = ?, cust_image = ?\n                        WHERE cust_id = ?\n                    ");
-                    $update->execute([$name, $dob, $phone, $email, $username, (int)$gender, $state, $newImageValue, $custId]);
-                    $conn->commit();
-
-                    if ($newImageAbsolutePath && $oldImageValue && str_starts_with($oldImageValue, 'uploads/customer/')) {
-                        $oldAbsolute = '../../images/' . $oldImageValue;
-                        if (is_file($oldAbsolute) && realpath($oldAbsolute) !== realpath($newImageAbsolutePath)) {
-                            @unlink($oldAbsolute);
-                        }
-                    }
-
-                    $_SESSION['cust_name'] = $name;
-                    $success = $croppedImage !== '' ? 'Profile and profile picture updated successfully.' : 'Profile updated successfully.';
-
-                    $stmt->execute([$custId]);
-                    $customer = $stmt->fetch();
-                } catch (Throwable $e) {
-                    if ($conn->inTransaction()) $conn->rollBack();
-                    if ($newImageAbsolutePath && is_file($newImageAbsolutePath)) @unlink($newImageAbsolutePath);
-                    $error = 'Your profile could not be updated. Please try again.';
                 }
             }
         }
     }
+
+    if (!$fieldErrors) {
+        try {
+            $conn->beginTransaction();
+            $update = $conn->prepare("
+                UPDATE customer
+                SET cust_name = ?, cust_dob = ?, cust_phonenum = ?, cust_email = ?,
+                    cust_username = ?, cust_gender = ?, cust_state = ?, cust_image = ?
+                WHERE cust_id = ?
+            ");
+            $update->execute([$name, $dob, $phone, $email, $username, (int) $gender, $state, $newImageValue, $custId]);
+            $conn->commit();
+
+            if ($newImageAbsolutePath && $oldImageValue && str_starts_with($oldImageValue, 'uploads/customer/')) {
+                $oldAbsolute = '../../images/' . $oldImageValue;
+                if (is_file($oldAbsolute) && realpath($oldAbsolute) !== realpath($newImageAbsolutePath)) @unlink($oldAbsolute);
+            }
+
+            $_SESSION['cust_name'] = $name;
+            $success = $croppedImage !== ''
+                ? 'Profile and profile picture updated successfully.'
+                : 'Profile updated successfully.';
+            $stmt->execute([$custId]);
+            $customer = $stmt->fetch();
+        } catch (Throwable $e) {
+            if ($conn->inTransaction()) $conn->rollBack();
+            if ($newImageAbsolutePath && is_file($newImageAbsolutePath)) @unlink($newImageAbsolutePath);
+            $error = 'Your profile could not be updated. Please try again.';
+        }
+    }
+}
+
+$formCustomer = $customer;
+if (isset($_POST['update_profile']) && ($fieldErrors || $error)) {
+    $formCustomer['cust_name'] = $_POST['cust_name'] ?? $customer['cust_name'];
+    $formCustomer['cust_dob'] = $_POST['cust_dob'] ?? $customer['cust_dob'];
+    $formCustomer['cust_phonenum'] = $_POST['cust_phonenum'] ?? $customer['cust_phonenum'];
+    $formCustomer['cust_email'] = $_POST['cust_email'] ?? $customer['cust_email'];
+    $formCustomer['cust_username'] = $_POST['cust_username'] ?? $customer['cust_username'];
+    $formCustomer['cust_gender'] = $_POST['cust_gender'] ?? $customer['cust_gender'];
+    $formCustomer['cust_state'] = $_POST['cust_state'] ?? $customer['cust_state'];
 }
 
 $vehicleStmt = $conn->prepare("SELECT COUNT(*) FROM vehicle WHERE cust_id = ?");
@@ -136,10 +169,6 @@ $bookingCount = (int)$bookingStmt->fetchColumn();
 
 $imagePath = resolveCustomerImagePath($customer['cust_image'] ?? null);
 
-$states = [
-    'Johor','Kedah','Kelantan','Melaka','Negeri Sembilan','Pahang','Penang','Perak',
-    'Perlis','Sabah','Sarawak','Selangor','Terengganu','Kuala Lumpur','Putrajaya','Labuan'
-];
 
 $pageTitle = "Profile";
 include "../includes/header.php";
@@ -358,6 +387,9 @@ include "../includes/header.php";
                 <h2><?= htmlspecialchars($customer['cust_name']) ?></h2>
                 <p>@<?= htmlspecialchars($customer['cust_username']) ?></p>
                 <p class="photo-note">JPG, PNG or WEBP. Crop and reposition it before saving.</p>
+                <?php if (isset($fieldErrors['cust_image'])): ?>
+                    <span class="kcw-field-error"><?= htmlspecialchars($fieldErrors['cust_image']) ?></span>
+                <?php endif; ?>
 
                 <div class="profile-stats">
                     <div class="profile-stat"><strong><?= $vehicleCount ?></strong><span>Vehicles</span></div>
@@ -390,41 +422,63 @@ include "../includes/header.php";
                 <input type="hidden" name="cropped_image" id="cropped-image-data" value="">
 
                 <div class="form-grid">
-                    <div class="field">
+                    <div class="field<?= isset($fieldErrors['cust_name']) ? ' has-error' : '' ?>">
                         <label for="cust_name">Full name</label>
-                        <input class="input" id="cust_name" name="cust_name" maxlength="50" value="<?= htmlspecialchars($customer['cust_name']) ?>" required>
+                        <input class="input" id="cust_name" name="cust_name" maxlength="50" value="<?= htmlspecialchars($formCustomer['cust_name']) ?>" required>
+                        <span class="kcw-field-error"><?= htmlspecialchars($fieldErrors['cust_name'] ?? '') ?></span>
                     </div>
-                    <div class="field">
+                    <div class="field<?= isset($fieldErrors['cust_dob']) ? ' has-error' : '' ?>">
                         <label for="cust_dob">Date of birth</label>
-                        <input class="input" id="cust_dob" type="date" name="cust_dob" value="<?= htmlspecialchars($customer['cust_dob']) ?>" required>
+                        <input class="input" id="cust_dob" type="date" name="cust_dob" value="<?= htmlspecialchars($formCustomer['cust_dob']) ?>" required>
+                        <span class="kcw-field-error"><?= htmlspecialchars($fieldErrors['cust_dob'] ?? '') ?></span>
                     </div>
-                    <div class="field">
+                    <div class="field<?= isset($fieldErrors['cust_phonenum']) ? ' has-error' : '' ?>">
                         <label for="cust_phonenum">Phone number</label>
-                        <input class="input" id="cust_phonenum" name="cust_phonenum" inputmode="numeric" value="<?= htmlspecialchars((string)$customer['cust_phonenum']) ?>" required>
+                        <input class="input" id="cust_phonenum" name="cust_phonenum" inputmode="numeric" value="<?= htmlspecialchars((string) $formCustomer['cust_phonenum']) ?>" required>
                         <span class="helper-text">The current database still stores this as an integer.</span>
+                        <span class="kcw-field-error"><?= htmlspecialchars($fieldErrors['cust_phonenum'] ?? '') ?></span>
                     </div>
-                    <div class="field">
+                    <div class="field<?= isset($fieldErrors['cust_email']) ? ' has-error' : '' ?>">
                         <label for="cust_email">Email address</label>
-                        <input class="input" id="cust_email" type="email" name="cust_email" maxlength="30" value="<?= htmlspecialchars($customer['cust_email']) ?>" required>
+                        <input class="input" id="cust_email" type="email" name="cust_email" maxlength="30" value="<?= htmlspecialchars($formCustomer['cust_email']) ?>" required>
+                        <span class="kcw-field-error"><?= htmlspecialchars($fieldErrors['cust_email'] ?? '') ?></span>
                     </div>
-                    <div class="field">
+                    <div class="field<?= isset($fieldErrors['cust_username']) ? ' has-error' : '' ?>">
                         <label for="cust_username">Username</label>
-                        <input class="input" id="cust_username" name="cust_username" maxlength="50" value="<?= htmlspecialchars($customer['cust_username']) ?>" required>
+                        <input class="input" id="cust_username" name="cust_username" maxlength="50" value="<?= htmlspecialchars($formCustomer['cust_username']) ?>" required>
+                        <span class="kcw-field-error"><?= htmlspecialchars($fieldErrors['cust_username'] ?? '') ?></span>
                     </div>
-                    <div class="field">
-                        <label for="cust_gender">Gender</label>
-                        <select class="select" id="cust_gender" name="cust_gender" required>
-                            <option value="0" <?= (int)$customer['cust_gender'] === 0 ? 'selected' : '' ?>>Male</option>
-                            <option value="1" <?= (int)$customer['cust_gender'] === 1 ? 'selected' : '' ?>>Female</option>
-                        </select>
+                    <div class="field<?= isset($fieldErrors['cust_gender']) ? ' has-error' : '' ?>">
+                        <label>Gender</label>
+                        <div class="kcw-choice-grid">
+                            <label class="kcw-choice">
+                                <input type="radio" name="cust_gender" value="0" <?= (string) $formCustomer['cust_gender'] === '0' ? 'checked' : '' ?> required>
+                                <span><i class="fa-solid fa-person"></i> Male</span>
+                            </label>
+                            <label class="kcw-choice">
+                                <input type="radio" name="cust_gender" value="1" <?= (string) $formCustomer['cust_gender'] === '1' ? 'checked' : '' ?>>
+                                <span><i class="fa-solid fa-person-dress"></i> Female</span>
+                            </label>
+                        </div>
+                        <span class="kcw-field-error"><?= htmlspecialchars($fieldErrors['cust_gender'] ?? '') ?></span>
                     </div>
-                    <div class="field">
+                    <div class="field<?= isset($fieldErrors['cust_state']) ? ' has-error' : '' ?>">
                         <label for="cust_state">State</label>
-                        <select class="select" id="cust_state" name="cust_state" required>
-                            <?php foreach ($states as $state): ?>
-                                <option value="<?= htmlspecialchars($state) ?>" <?= $customer['cust_state'] === $state ? 'selected' : '' ?>><?= htmlspecialchars($state) ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <input
+                            class="input"
+                            id="cust_state"
+                            name="cust_state"
+                            list="customer-state-options"
+                            autocomplete="address-level1"
+                            value="<?= htmlspecialchars($formCustomer['cust_state']) ?>"
+                            placeholder="Type or choose a state"
+                            required
+                        >
+                        <datalist id="customer-state-options">
+                            <?php foreach ($states as $state): ?><option value="<?= htmlspecialchars($state) ?>"></option><?php endforeach; ?>
+                        </datalist>
+                        <span class="helper-text">Type to search or open the list and scroll.</span>
+                        <span class="kcw-field-error"><?= htmlspecialchars($fieldErrors['cust_state'] ?? '') ?></span>
                     </div>
                 </div>
 

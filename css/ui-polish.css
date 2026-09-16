@@ -315,3 +315,125 @@ html[data-theme="dark"] .ios-toast {
 .ios-table .action-stack {
     justify-content: center;
 }
+
+/* =========================================================
+   SHARED FORM FEEDBACK + DIRECT CHOICES
+   ========================================================= */
+
+.kcw-field-error {
+    display: block;
+    min-height: 1.05rem;
+    margin-top: 6px;
+    color: var(--danger);
+    font-size: .72rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.field.has-error .input,
+.field.has-error .select,
+.field.has-error .textarea {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+.kcw-choice-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.kcw-choice-grid.three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.kcw-choice {
+    position: relative;
+    display: block;
+    cursor: pointer;
+}
+
+.kcw-choice input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.kcw-choice span {
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--surface-solid) 90%, transparent);
+    color: var(--text-soft);
+    font-size: .8rem;
+    font-weight: 750;
+    text-align: center;
+    transition: border-color .16s ease, background .16s ease, color .16s ease, box-shadow .16s ease;
+}
+
+.kcw-choice span:hover {
+    border-color: color-mix(in srgb, var(--primary) 46%, var(--border));
+}
+
+.kcw-choice input:checked + span {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.kcw-choice input:focus-visible + span {
+    outline: 3px solid color-mix(in srgb, var(--primary) 30%, transparent);
+    outline-offset: 2px;
+}
+
+.staff-body .kcw-field-error {
+    color: var(--staff-red);
+}
+
+.staff-body .ios-field.has-error .ios-input,
+.staff-body .ios-field.has-error .ios-select,
+.staff-body .ios-field.has-error .ios-textarea {
+    border-color: var(--staff-red);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--staff-red) 12%, transparent);
+}
+
+.staff-body .kcw-choice span {
+    border-color: var(--staff-border);
+    background: color-mix(in srgb, var(--staff-surface-solid) 90%, transparent);
+    color: var(--staff-muted);
+}
+
+.staff-body .kcw-choice span:hover {
+    border-color: color-mix(in srgb, var(--staff-blue) 46%, var(--staff-border));
+}
+
+.staff-body .kcw-choice input:checked + span {
+    border-color: var(--staff-blue);
+    background: var(--staff-blue-soft);
+    color: var(--staff-blue);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--staff-blue) 10%, transparent);
+}
+
+.staff-body .kcw-choice input:focus-visible + span {
+    outline-color: color-mix(in srgb, var(--staff-blue) 30%, transparent);
+}
+
+@media (max-width: 560px) {
+    .kcw-choice-grid.three {
+        grid-template-columns: 1fr;
+    }
+}
+
+.field.has-error .kcw-choice span {
+    border-color: var(--danger);
+}
+
+.staff-body .ios-field.has-error .kcw-choice span {
+    border-color: var(--staff-red);
+}

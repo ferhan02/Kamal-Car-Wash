@@ -10,6 +10,7 @@ if (!isset($_SESSION['cust_id'])) {
 $custId = (int) $_SESSION['cust_id'];
 $success = '';
 $error = '';
+$fieldErrors = [];
 
 if (isset($_POST['add_vehicle'])) {
     $plate = strtoupper(trim($_POST['vehicle_platenum'] ?? ''));
@@ -17,16 +18,20 @@ if (isset($_POST['add_vehicle'])) {
     $model = trim($_POST['vehicle_model'] ?? '');
     $type = trim($_POST['vehicle_type'] ?? '');
 
-    if ($plate === '' || $brand === '' || $model === '' || !in_array($type, ['A', 'B', 'C'], true)) {
-        $error = 'Please complete every vehicle field.';
-    } elseif (strlen($plate) > 20 || strlen($brand) > 15 || strlen($model) > 15) {
-        $error = 'One or more vehicle values are longer than the current database allows.';
-    } else {
+    if ($plate === '') $fieldErrors['vehicle_platenum'] = 'Enter the plate number.';
+    if ($brand === '') $fieldErrors['vehicle_brand'] = 'Enter the vehicle brand.';
+    if ($model === '') $fieldErrors['vehicle_model'] = 'Enter the vehicle model.';
+    if (!in_array($type, ['A', 'B', 'C'], true)) $fieldErrors['vehicle_type'] = 'Choose a vehicle type.';
+    if (strlen($plate) > 20) $fieldErrors['vehicle_platenum'] = 'Plate number must be 20 characters or fewer.';
+    if (strlen($brand) > 15) $fieldErrors['vehicle_brand'] = 'Brand must be 15 characters or fewer.';
+    if (strlen($model) > 15) $fieldErrors['vehicle_model'] = 'Model must be 15 characters or fewer.';
+
+    if (!$fieldErrors) {
         $check = $conn->prepare("SELECT vehicle_id FROM vehicle WHERE vehicle_platenum = ? LIMIT 1");
         $check->execute([$plate]);
 
         if ($check->fetch()) {
-            $error = 'That plate number is already registered.';
+            $fieldErrors['vehicle_platenum'] = 'That plate number is already registered.';
         } else {
             $insert = $conn->prepare("
                 INSERT INTO vehicle (cust_id, vehicle_platenum, vehicle_brand, vehicle_model, vehicle_type)
@@ -34,6 +39,7 @@ if (isset($_POST['add_vehicle'])) {
             ");
             $insert->execute([$custId, $plate, $brand, $model, $type]);
             $success = 'Vehicle added successfully.';
+            $_POST = [];
         }
     }
 }
@@ -195,26 +201,46 @@ include "../includes/header.php";
             <?php endif; ?>
 
             <form class="vehicle-form" method="POST">
-                <div class="field">
+                <div class="field<?= isset($fieldErrors['vehicle_platenum']) ? ' has-error' : '' ?>">
                     <label for="vehicle_platenum">Plate number</label>
-                    <input class="input" id="vehicle_platenum" name="vehicle_platenum" maxlength="20" placeholder="NXX 1234" required>
+                    <input
+                        class="input"
+                        id="vehicle_platenum"
+                        name="vehicle_platenum"
+                        maxlength="20"
+                        placeholder="NXX 1234"
+                        value="<?= htmlspecialchars($_POST['vehicle_platenum'] ?? '') ?>"
+                        required
+                    >
+                    <span class="kcw-field-error"><?= htmlspecialchars($fieldErrors['vehicle_platenum'] ?? '') ?></span>
                 </div>
-                <div class="field">
+                <div class="field<?= isset($fieldErrors['vehicle_brand']) ? ' has-error' : '' ?>">
                     <label for="vehicle_brand">Brand</label>
-                    <input class="input" id="vehicle_brand" name="vehicle_brand" maxlength="15" placeholder="Perodua" required>
+                    <input class="input" id="vehicle_brand" name="vehicle_brand" maxlength="15" placeholder="Perodua" value="<?= htmlspecialchars($_POST['vehicle_brand'] ?? '') ?>" required>
+                    <span class="kcw-field-error"><?= htmlspecialchars($fieldErrors['vehicle_brand'] ?? '') ?></span>
                 </div>
-                <div class="field">
+                <div class="field<?= isset($fieldErrors['vehicle_model']) ? ' has-error' : '' ?>">
                     <label for="vehicle_model">Model</label>
-                    <input class="input" id="vehicle_model" name="vehicle_model" maxlength="15" placeholder="Myvi" required>
+                    <input class="input" id="vehicle_model" name="vehicle_model" maxlength="15" placeholder="Myvi" value="<?= htmlspecialchars($_POST['vehicle_model'] ?? '') ?>" required>
+                    <span class="kcw-field-error"><?= htmlspecialchars($fieldErrors['vehicle_model'] ?? '') ?></span>
                 </div>
-                <div class="field">
-                    <label for="vehicle_type">Vehicle type</label>
-                    <select class="select" id="vehicle_type" name="vehicle_type" required>
-                        <option value="">Choose type</option>
-                        <option value="A">Motorcycle</option>
-                        <option value="B">Normal Car</option>
-                        <option value="C">4x4 / Van</option>
-                    </select>
+                <div class="field<?= isset($fieldErrors['vehicle_type']) ? ' has-error' : '' ?>">
+                    <label>Vehicle type</label>
+                    <div class="kcw-choice-grid three">
+                        <label class="kcw-choice">
+                            <input type="radio" name="vehicle_type" value="A" <?= ($_POST['vehicle_type'] ?? '') === 'A' ? 'checked' : '' ?> required>
+                            <span><i class="fa-solid fa-motorcycle"></i> Motorcycle</span>
+                        </label>
+                        <label class="kcw-choice">
+                            <input type="radio" name="vehicle_type" value="B" <?= ($_POST['vehicle_type'] ?? '') === 'B' ? 'checked' : '' ?>>
+                            <span><i class="fa-solid fa-car-side"></i> Car</span>
+                        </label>
+                        <label class="kcw-choice">
+                            <input type="radio" name="vehicle_type" value="C" <?= ($_POST['vehicle_type'] ?? '') === 'C' ? 'checked' : '' ?>>
+                            <span><i class="fa-solid fa-truck-pickup"></i> 4x4 / Van</span>
+                        </label>
+                    </div>
+                    <span class="kcw-field-error"><?= htmlspecialchars($fieldErrors['vehicle_type'] ?? '') ?></span>
                 </div>
                 <button class="btn btn-primary" type="submit" name="add_vehicle">
                     <i class="fa-solid fa-plus"></i> Add vehicle
