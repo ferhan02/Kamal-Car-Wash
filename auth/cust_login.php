@@ -8,7 +8,8 @@ if (isset($_SESSION['cust_id'])) {
 }
 
 $error = '';
-$loginValue = trim($_POST['login'] ?? '');
+$success = isset($_GET['registered']) ? 'Account created successfully. You can sign in now.' : '';
+$loginValue = trim($_POST['login'] ?? $_GET['login'] ?? '');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
@@ -25,16 +26,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([$loginValue, $loginValue]);
         $customer = $stmt->fetch();
 
-        if (!$customer || !password_verify($password, $customer['cust_password'])) {
+        if (!$customer) {
             $error = 'The username/email or password is incorrect.';
         } else {
-            session_regenerate_id(true);
-            $_SESSION['cust_id'] = (int)$customer['cust_id'];
-            $_SESSION['cust_name'] = $customer['cust_name'];
-            $_SESSION['cust_username'] = $customer['cust_username'];
+            $storedPassword = (string)$customer['cust_password'];
 
-            header("Location: ../customer/pages/cust_home.php");
-            exit();
+            // New accounts use password_hash()/password_verify().
+            // Older database rows may still contain plain-text passwords,
+            // so allow a one-time legacy match and immediately upgrade it.
+            $validPassword = password_verify($password, $storedPassword);
+            $legacyPlaintextMatch = !$validPassword && hash_equals($storedPassword, $password);
+
+            if (!$validPassword && !$legacyPlaintextMatch) {
+                $error = 'The username/email or password is incorrect.';
+            } else {
+                if ($legacyPlaintextMatch || password_needs_rehash($storedPassword, PASSWORD_DEFAULT)) {
+                    $newHash = password_hash($password, PASSWORD_DEFAULT);
+                    $upgrade = $conn->prepare("UPDATE customer SET cust_password = ? WHERE cust_id = ?");
+                    $upgrade->execute([$newHash, (int)$customer['cust_id']]);
+                }
+
+                session_regenerate_id(true);
+                $_SESSION['cust_id'] = (int)$customer['cust_id'];
+                $_SESSION['cust_name'] = $customer['cust_name'];
+                $_SESSION['cust_username'] = $customer['cust_username'];
+
+                header("Location: ../customer/pages/cust_home.php");
+                exit();
+            }
         }
     }
 }
@@ -198,6 +217,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <h2>Customer login</h2>
                 <p>Use your username or registered email address.</p>
             </div>
+
+            <?php if ($success): ?>
+                <div class="alert alert-success" style="margin-top:20px;">
+                    <i class="fa-solid fa-circle-check"></i><?= htmlspecialchars($success) ?>
+                </div>
+            <?php endif; ?>
 
             <?php if ($error): ?>
                 <div class="alert alert-error" style="margin-top:20px;">

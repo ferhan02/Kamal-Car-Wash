@@ -8,6 +8,7 @@ if (isset($_SESSION['cust_id'])) {
 }
 
 $error = '';
+$duplicateEmail = '';
 $states = [
     'Johor','Kedah','Kelantan','Melaka','Negeri Sembilan','Pahang','Penang','Perak',
     'Perlis','Sabah','Sarawak','Selangor','Terengganu','Kuala Lumpur','Putrajaya','Labuan'
@@ -42,18 +43,20 @@ if (isset($_POST['register'])) {
               strlen($state) > 30 || strlen($plate) > 20 || strlen($brand) > 15 || strlen($model) > 15) {
         $error = 'One or more values are longer than the current database allows.';
     } else {
-        $check = $conn->prepare("
-            SELECT cust_id FROM customer
-            WHERE cust_email = ? OR cust_username = ?
-            LIMIT 1
-        ");
-        $check->execute([$email, $username]);
+        $emailCheck = $conn->prepare("SELECT cust_id FROM customer WHERE cust_email = ? LIMIT 1");
+        $emailCheck->execute([$email]);
+
+        $usernameCheck = $conn->prepare("SELECT cust_id FROM customer WHERE cust_username = ? LIMIT 1");
+        $usernameCheck->execute([$username]);
 
         $plateCheck = $conn->prepare("SELECT vehicle_id FROM vehicle WHERE vehicle_platenum = ? LIMIT 1");
         $plateCheck->execute([$plate]);
 
-        if ($check->fetch()) {
-            $error = 'That email address or username is already registered.';
+        if ($emailCheck->fetch()) {
+            $duplicateEmail = $email;
+            $error = 'This email address is already registered.';
+        } elseif ($usernameCheck->fetch()) {
+            $error = 'That username is already taken. Please choose another username.';
         } elseif ($plateCheck->fetch()) {
             $error = 'That vehicle plate number is already registered.';
         } else {
@@ -208,6 +211,38 @@ if (isset($_POST['register'])) {
     }
     .register-submit p { color: var(--text-soft); font-size: .8rem; }
     .register-submit a { color: var(--primary); font-weight: 800; text-decoration: none; }
+    .password-hint {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 7px;
+        color: var(--text-soft);
+        font-size: .72rem;
+        line-height: 1.35;
+    }
+    .password-hint i { color: var(--primary); font-size: .65rem; }
+    .existing-account-alert {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 20px;
+        padding: 15px 16px;
+        border: 1px solid color-mix(in srgb, var(--primary) 26%, var(--border));
+        border-radius: 14px;
+        background: color-mix(in srgb, var(--primary-soft) 72%, var(--surface));
+    }
+    .existing-account-copy {
+        display: flex;
+        align-items: flex-start;
+        gap: 11px;
+        color: var(--text);
+        font-size: .82rem;
+    }
+    .existing-account-copy i { margin-top: 3px; color: var(--primary); }
+    .existing-account-copy strong { display: block; color: var(--heading); }
+    .existing-account-copy span { display: block; margin-top: 2px; color: var(--text-soft); }
+    .existing-account-alert .btn { flex: 0 0 auto; }
 
     @media (max-width: 850px) {
         .register-form { grid-template-columns: 1fr; }
@@ -219,6 +254,8 @@ if (isset($_POST['register'])) {
         .field-grid { grid-template-columns: 1fr; }
         .register-submit { align-items: stretch; flex-direction: column; }
         .register-submit .btn { width: 100%; }
+        .existing-account-alert { align-items: stretch; flex-direction: column; }
+        .existing-account-alert .btn { width: 100%; }
     }
     </style>
 </head>
@@ -244,7 +281,20 @@ if (isset($_POST['register'])) {
             <p>Your first vehicle is registered with the account so you can start booking immediately after signing in.</p>
         </div>
 
-        <?php if ($error): ?>
+        <?php if ($duplicateEmail): ?>
+            <div class="existing-account-alert">
+                <div class="existing-account-copy">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <div>
+                        <strong>Email already registered</strong>
+                        <span><?= htmlspecialchars($duplicateEmail) ?> already has a Kamal Car Wash account.</span>
+                    </div>
+                </div>
+                <a class="btn btn-primary" href="cust_login.php?login=<?= urlencode($duplicateEmail) ?>">
+                    Sign in instead <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        <?php elseif ($error): ?>
             <div class="alert alert-error" style="margin-bottom:20px;">
                 <i class="fa-solid fa-circle-exclamation"></i><?= htmlspecialchars($error) ?>
             </div>
@@ -313,6 +363,7 @@ if (isset($_POST['register'])) {
                                 <input class="input" id="password" type="password" name="password" minlength="8" required>
                                 <button class="password-eye" type="button" data-password-toggle="password" aria-label="Show password"><i class="fa-solid fa-eye"></i></button>
                             </div>
+                            <div class="password-hint"><i class="fa-solid fa-lock"></i> At least 8 characters</div>
                         </div>
                         <div class="field">
                             <label for="verify_password">Confirm password</label>
@@ -320,6 +371,7 @@ if (isset($_POST['register'])) {
                                 <input class="input" id="verify_password" type="password" name="verify_password" minlength="8" required>
                                 <button class="password-eye" type="button" data-password-toggle="verify_password" aria-label="Show password"><i class="fa-solid fa-eye"></i></button>
                             </div>
+                            <div class="password-hint"><i class="fa-solid fa-check"></i> Re-enter the same password</div>
                         </div>
                     </div>
                 </div>

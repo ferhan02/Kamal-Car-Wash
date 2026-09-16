@@ -172,7 +172,7 @@ include "../includes/header.php";
 <section class="vehicle-hero">
     <div class="container vehicle-hero-row">
         <div>
-            <span class="eyebrow"><i class="fa-solid fa-garage"></i> Garage</span>
+            <span class="eyebrow"><i class="fa-solid fa-warehouse"></i> Garage</span>
             <h1 class="section-heading">Your registered vehicles</h1>
             <p class="section-copy">Keep the vehicles you book for in one place. Vehicle details are shown exactly as they are stored in the current database.</p>
         </div>
@@ -183,7 +183,7 @@ include "../includes/header.php";
 <section class="section">
     <div class="container vehicle-layout">
         <aside class="card vehicle-form-card">
-            <span class="eyebrow">Add vehicle</span>
+            <span class="eyebrow"><i class="fa-solid fa-car-on"></i> Add vehicle</span>
             <h2>Register another vehicle</h2>
             <p>Plate numbers are converted to uppercase to keep them consistent.</p>
 

@@ -5,10 +5,11 @@
 
 :root {
     color-scheme: light;
-    --bg: #f5f7fb;
-    --surface: #ffffff;
-    --surface-2: #eef3f8;
-    --surface-3: #e6edf6;
+    --bg: #e9eef4;
+    --surface: #f7f9fc;
+    --surface-2: #edf2f7;
+    --surface-3: #e3eaf2;
+    --pattern-wash: rgba(233, 238, 244, .90);
     --text: #172033;
     --text-soft: #667085;
     --heading: #111827;
@@ -38,6 +39,7 @@ html[data-theme="dark"] {
     --surface: #151d29;
     --surface-2: #1b2634;
     --surface-3: #233044;
+    --pattern-wash: rgba(13, 19, 29, .94);
     --text: #e8edf5;
     --text-soft: #a8b3c3;
     --heading: #f8fafc;
@@ -61,12 +63,21 @@ html[data-theme="dark"] {
 html { scroll-behavior: smooth; }
 body {
     min-height: 100vh;
-    background: var(--bg);
+    background-color: var(--bg);
+    background-image:
+        linear-gradient(var(--pattern-wash), var(--pattern-wash)),
+        url('../images/car pattern bg.png');
+    background-size: auto, 520px auto;
+    background-position: center, center top;
+    background-repeat: repeat, repeat;
+    background-attachment: fixed, fixed;
     color: var(--text);
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     line-height: 1.6;
     transition: background-color .25s ease, color .25s ease;
 }
+::selection { background: color-mix(in srgb, var(--primary) 28%, transparent); color: var(--heading); }
+* { scrollbar-color: color-mix(in srgb, var(--primary) 45%, var(--border)) transparent; }
 img { display: block; max-width: 100%; }
 a { color: inherit; }
 button, input, select, textarea { font: inherit; }
@@ -108,9 +119,11 @@ html[data-theme="dark"] .btn-primary { color: #0b1724; }
 }
 
 .card {
-    background: var(--surface); border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface) 96%, transparent); border: 1px solid var(--border);
     border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
 }
+.card:hover { border-color: color-mix(in srgb, var(--primary) 18%, var(--border)); }
 
 .field { display: grid; gap: 7px; }
 .field label { color: var(--heading); font-size: .86rem; font-weight: 700; }
@@ -154,7 +167,7 @@ html[data-theme="dark"] .btn-primary { color: #0b1724; }
 
 .site-header {
     position: sticky; top: 0; z-index: 50; border-bottom: 1px solid var(--border);
-    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
     backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
 }
 .site-header-inner { position: relative; display: flex; min-height: var(--header-height); align-items: center; gap: 26px; }
