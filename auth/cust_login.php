@@ -85,8 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </script>
 
     <link rel="stylesheet" href="../css/style.css">
-    <link rel="stylesheet" href="../css/ui-polish.css">
-    <link
+        <link
         rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
     >

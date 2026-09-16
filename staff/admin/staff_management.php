@@ -1,15 +1,343 @@
 <?php
-session_start();require_once __DIR__.'/../../config.php';require_once __DIR__.'/../includes/helpers.php';if(!isset($_SESSION['staff_id'])){header('Location: ../../auth/staff_login.php');exit();}$staff_id=(int)$_SESSION['staff_id'];$stmt=$conn->prepare('SELECT * FROM staff WHERE staff_id=?');$stmt->execute([$staff_id]);$staff=$stmt->fetch(PDO::FETCH_ASSOC);if(!$staff){session_destroy();header('Location: ../../auth/staff_login.php');exit();}if(!kcw_admin_role($staff['staff_job'])){header('Location: ../staff_home.php');exit();}
-$search=trim($_GET['search']??'');$job=trim($_GET['job']??'');$where=[];$params=[];if($search!==''){$where[]='(staff_name LIKE ? OR staff_email LIKE ? OR staff_job LIKE ?)';for($i=0;$i<3;$i++)$params[]='%'.$search.'%';}if($job!==''){$where[]='staff_job=?';$params[]=$job;}$sql='SELECT * FROM staff'.($where?' WHERE '.implode(' AND ',$where):'').' ORDER BY staff_id ASC';$stmt=$conn->prepare($sql);$stmt->execute($params);$staff_list=$stmt->fetchAll(PDO::FETCH_ASSOC);$roles=$conn->query("SELECT staff_job,COUNT(*) total FROM staff GROUP BY staff_job ORDER BY staff_job")->fetchAll(PDO::FETCH_ASSOC);$total_staff=(int)$conn->query('SELECT COUNT(*) FROM staff')->fetchColumn();
-$root_prefix='../../';$page_title='Staff Management';include __DIR__.'/../includes/head.php';
+session_start();
+require_once __DIR__.'/../../config.php';
+require_once __DIR__.'/../includes/helpers.php';
+if(!isset($_SESSION['staff_id'])) {
+    header('Location: ../../auth/staff_login.php');
+    exit();
+}
+$staff_id=(int)$_SESSION['staff_id'];
+$stmt=$conn->prepare('SELECT * FROM staff WHERE staff_id=?');
+$stmt->execute([$staff_id]);
+$staff=$stmt->fetch(PDO::FETCH_ASSOC);
+if(!$staff) {
+    session_destroy();
+    header('Location: ../../auth/staff_login.php');
+    exit();
+}
+if(!kcw_admin_role($staff['staff_job'])) {
+    header('Location: ../staff_home.php');
+    exit();
+}
+$search=trim($_GET['search']??'');
+$job=trim($_GET['job']??'');
+$where=[];
+$params=[];
+if($search!=='') {
+    $where[]='(staff_name LIKE ? OR staff_email LIKE ? OR staff_job LIKE ?)';
+    for($i=0;$i<3;$i++)$params[]='%'.$search.'%';
+}
+if($job!=='') {
+    $where[]='staff_job=?';
+    $params[]=$job;
+}
+$sql='SELECT * FROM staff'.($where?' WHERE '.implode(' AND ',$where):'').' ORDER BY staff_id ASC';
+$stmt=$conn->prepare($sql);
+$stmt->execute($params);
+$staff_list=$stmt->fetchAll(PDO::FETCH_ASSOC);
+$roles=$conn->query("SELECT staff_job,COUNT(*) total FROM staff GROUP BY staff_job ORDER BY staff_job")->fetchAll(PDO::FETCH_ASSOC);
+$total_staff=(int)$conn->query('SELECT COUNT(*) FROM staff')->fetchColumn();
+$root_prefix='../../';
+$page_title='Staff Management';
+include __DIR__.'/../includes/head.php';
 ?>
 <style>
-.admin-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.summary-tile{padding:17px}.summary-tile span{display:block;color:var(--staff-muted);font-size:.66rem;font-weight:850;text-transform:uppercase;letter-spacing:.06em}.summary-tile strong{display:block;margin-top:4px;font-size:1.45rem;letter-spacing:-.04em}.filters{display:grid;grid-template-columns:1fr 220px auto;gap:10px;padding:15px;margin-bottom:14px}.staff-table-card{padding:14px}.staff-person{display:flex;align-items:center;gap:10px;min-width:180px}.staff-person img{width:40px;height:40px;border-radius:13px;object-fit:cover;border:1px solid var(--staff-border)}.staff-person strong{display:block;font-size:.78rem}.staff-person span{display:block;color:var(--staff-muted);font-size:.66rem}.job-chip{display:inline-flex;padding:5px 8px;border-radius:999px;background:var(--staff-blue-soft);color:var(--staff-blue);font-size:.68rem;font-weight:800}.mobile-staff{display:none}.staff-card{padding:16px}.staff-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.staff-card-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}.staff-card-meta div{padding:9px 10px;border-radius:13px;background:var(--staff-surface-2);font-size:.7rem;color:var(--staff-muted)}.staff-card-meta strong{display:block;color:var(--staff-text);font-size:.74rem;margin-top:2px}
-@media(max-width:900px){.admin-summary{grid-template-columns:repeat(2,1fr)}.filters{grid-template-columns:1fr 1fr}.filters .search{grid-column:1/-1}.desktop-staff{display:none}.mobile-staff{display:grid;gap:9px}.staff-table-card{padding:0;background:transparent;border:0;box-shadow:none}}@media(max-width:560px){.filters{grid-template-columns:1fr}.filters .search{grid-column:auto}.admin-summary{grid-template-columns:1fr 1fr}}
+.admin-summary {
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+    margin-bottom:14px
+}
+.summary-tile {
+    padding:17px
+}
+.summary-tile span {
+    display:block;
+    color:var(--staff-muted);
+    font-size:.66rem;
+    font-weight:850;
+    text-transform:uppercase;
+    letter-spacing:.06em
+}
+.summary-tile strong {
+    display:block;
+    margin-top:4px;
+    font-size:1.45rem;
+    letter-spacing:-.04em
+}
+.filters {
+    display:grid;
+    grid-template-columns:1fr 220px auto;
+    gap:10px;
+    padding:15px;
+    margin-bottom:14px
+}
+.staff-table-card {
+    padding:14px
+}
+.staff-person {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    min-width:180px
+}
+.staff-person img {
+    width:40px;
+    height:40px;
+    border-radius:13px;
+    object-fit:cover;
+    border:1px solid var(--staff-border)
+}
+.staff-person strong {
+    display:block;
+    font-size:.78rem
+}
+.staff-person span {
+    display:block;
+    color:var(--staff-muted);
+    font-size:.66rem
+}
+.job-chip {
+    display:inline-flex;
+    padding:5px 8px;
+    border-radius:999px;
+    background:var(--staff-blue-soft);
+    color:var(--staff-blue);
+    font-size:.68rem;
+    font-weight:800
+}
+.mobile-staff {
+    display:none
+}
+.staff-card {
+    padding:16px
+}
+.staff-card-head {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px
+}
+.staff-card-meta {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-top:14px
+}
+.staff-card-meta div {
+    padding:9px 10px;
+    border-radius:13px;
+    background:var(--staff-surface-2);
+    font-size:.7rem;
+    color:var(--staff-muted)
+}
+.staff-card-meta strong {
+    display:block;
+    color:var(--staff-text);
+    font-size:.74rem;
+    margin-top:2px
+}
+@media(max-width:900px) {
+    .admin-summary {
+        grid-template-columns:repeat(2,1fr)
+    }
+    .filters {
+        grid-template-columns:1fr 1fr
+    }
+    .filters .search {
+        grid-column:1/-1
+    }
+    .desktop-staff {
+        display:none
+    }
+    .mobile-staff {
+        display:grid;
+        gap:9px
+    }
+    .staff-table-card {
+        padding:0;
+        background:transparent;
+        border:0;
+        box-shadow:none
+    }
+}
+@media(max-width:560px) {
+    .filters {
+        grid-template-columns:1fr
+    }
+    .filters .search {
+        grid-column:auto
+    }
+    .admin-summary {
+        grid-template-columns:1fr 1fr
+    }
+}
 </style>
-</head><body class="staff-body"><?php include __DIR__.'/../includes/admin_header.php';include __DIR__.'/../includes/admin_toolbar.php';?>
-<main class="staff-main"><div class="staff-page-heading"><div><span class="staff-eyebrow"><i class="fa-solid fa-users-gear"></i> Administration</span><h1>Staff management</h1><p>Keep the team directory, roles and staff account details organised.</p></div><a class="ios-btn ios-btn-primary" href="add_staff.php"><i class="fa-solid fa-user-plus"></i> Add staff</a></div>
-<section class="admin-summary"><article class="ios-card summary-tile"><span>Total staff</span><strong><?= $total_staff ?></strong></article><?php foreach(array_slice($roles,0,3) as $r):?><article class="ios-card summary-tile"><span><?= kcw_h($r['staff_job']) ?></span><strong><?= (int)$r['total'] ?></strong></article><?php endforeach;?></section>
-<form class="ios-card filters" method="GET"><div class="ios-field search"><label>Search</label><input class="ios-input" name="search" value="<?= kcw_h($search) ?>" placeholder="Name, email or role"></div><div class="ios-field"><label>Role</label><select class="ios-select" name="job"><option value="">All roles</option><?php foreach($roles as $r):?><option value="<?= kcw_h($r['staff_job']) ?>" <?= $job===$r['staff_job']?'selected':'' ?>><?= kcw_h($r['staff_job']) ?></option><?php endforeach;?></select></div><button class="ios-btn ios-btn-primary"><i class="fa-solid fa-magnifying-glass"></i> Filter</button></form>
-<section class="ios-card staff-table-card"><div class="ios-table-wrap desktop-staff"><table class="ios-table"><thead><tr><th>Staff</th><th>Role</th><th>Phone</th><th>State</th><th>Hire date</th><th>Salary</th><th></th></tr></thead><tbody><?php if(!$staff_list):?><tr><td colspan="7"><div class="ios-empty"><i class="fa-solid fa-user-slash"></i><strong>No staff found</strong><span>Try another search or filter.</span></div></td></tr><?php endif;?><?php foreach($staff_list as $row):$img='../../images/'.ltrim($row['staff_image']?:'uploads/default.png','/');?><tr><td><div class="staff-person"><img src="<?= kcw_h($img) ?>" onerror="this.src='../../images/uploads/default.png'" alt=""><div><strong><?= kcw_h($row['staff_name']) ?></strong><span><?= kcw_h($row['staff_email']?:'No email') ?></span></div></div></td><td><span class="job-chip"><?= kcw_h($row['staff_job']) ?></span></td><td><?= kcw_h($row['staff_phonenum']) ?></td><td><?= kcw_h($row['staff_state']) ?></td><td><?= date('d M Y',strtotime($row['staff_hiredate'])) ?></td><td>RM <?= number_format((float)$row['staff_salary'],2) ?></td><td><a class="ios-btn ios-btn-secondary ios-btn-sm" href="edit_staff.php?id=<?= $row['staff_id'] ?>"><i class="fa-solid fa-pen"></i> Edit</a></td></tr><?php endforeach;?></tbody></table></div><div class="mobile-staff"><?php foreach($staff_list as $row):$img='../../images/'.ltrim($row['staff_image']?:'uploads/default.png','/');?><article class="ios-card staff-card"><div class="staff-card-head"><div class="staff-person"><img src="<?= kcw_h($img) ?>" onerror="this.src='../../images/uploads/default.png'" alt=""><div><strong><?= kcw_h($row['staff_name']) ?></strong><span><?= kcw_h($row['staff_email']?:'No email') ?></span></div></div><a class="ios-btn ios-btn-secondary ios-btn-sm" href="edit_staff.php?id=<?= $row['staff_id'] ?>"><i class="fa-solid fa-pen"></i></a></div><div class="staff-card-meta"><div>Role<strong><?= kcw_h($row['staff_job']) ?></strong></div><div>Salary<strong>RM <?= number_format((float)$row['staff_salary'],2) ?></strong></div><div>State<strong><?= kcw_h($row['staff_state']) ?></strong></div><div>Phone<strong><?= kcw_h($row['staff_phonenum']) ?></strong></div></div></article><?php endforeach;?></div></section>
-</main><?php include __DIR__.'/../includes/footer.php';?></body></html>
+</head>
+<body class="staff-body">
+    <?php include __DIR__.'/../includes/admin_header.php';include __DIR__.'/../includes/admin_toolbar.php'; ?>
+    <main class="staff-main">
+        <div class="staff-page-heading">
+            <div>
+                <span class="staff-eyebrow">
+                    <i class="fa-solid fa-users-gear">
+                    </i> Administration</span>
+                    <h1>Staff management</h1>
+                    <p>Keep the team directory, roles and staff account details organised.</p>
+                </div>
+                <a class="ios-btn ios-btn-primary" href="add_staff.php">
+                    <i class="fa-solid fa-user-plus">
+                    </i> Add staff</a>
+                </div>
+                <section class="admin-summary">
+                    <article class="ios-card summary-tile">
+                        <span>Total staff</span>
+                        <strong>
+                            <?= $total_staff ?>
+                        </strong>
+                    </article>
+                    <?php foreach(array_slice($roles,0,3) as $r): ?>
+                        <article class="ios-card summary-tile">
+                            <span>
+                                <?= kcw_h($r['staff_job']) ?>
+                            </span>
+                            <strong>
+                                <?= (int)$r['total'] ?>
+                            </strong>
+                        </article>
+                    <?php endforeach; ?>
+                </section>
+                <form class="ios-card filters" method="GET">
+                    <div class="ios-field search">
+                        <label>Search</label>
+                        <input class="ios-input" name="search" value="<?= kcw_h($search) ?>" placeholder="Name, email or role">
+                    </div>
+                    <div class="ios-field">
+                        <label>Role</label>
+                        <select class="ios-select" name="job">
+                            <option value="">All roles</option>
+                            <?php foreach($roles as $r): ?>
+                                <option value="<?= kcw_h($r['staff_job']) ?>" <?= $job===$r['staff_job']?'selected':'' ?>>
+                                    <?= kcw_h($r['staff_job']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <button class="ios-btn ios-btn-primary">
+                        <i class="fa-solid fa-magnifying-glass">
+                        </i> Filter</button>
+                    </form>
+                    <section class="ios-card staff-table-card">
+                        <div class="ios-table-wrap desktop-staff">
+                            <table class="ios-table">
+                                <thead>
+                                    <tr>
+                                        <th>Staff</th>
+                                        <th>Role</th>
+                                        <th>Phone</th>
+                                        <th>State</th>
+                                        <th>Hire date</th>
+                                        <th>Salary</th>
+                                        <th>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if(!$staff_list): ?>
+                                        <tr>
+                                            <td colspan="7">
+                                                <div class="ios-empty">
+                                                    <i class="fa-solid fa-user-slash">
+                                                    </i>
+                                                    <strong>No staff found</strong>
+                                                    <span>Try another search or filter.</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endif; ?>
+                                    <?php foreach($staff_list as $row):$img='../../images/'.ltrim($row['staff_image']?:'uploads/default.png','/'); ?>
+                                    <tr>
+                                        <td>
+                                            <div class="staff-person">
+                                                <img src="<?= kcw_h($img) ?>" onerror="this.src='../../images/uploads/default.png'" alt="">
+                                                <div>
+                                                    <strong>
+                                                        <?= kcw_h($row['staff_name']) ?>
+                                                    </strong>
+                                                    <span>
+                                                        <?= kcw_h($row['staff_email']?:'No email') ?>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="job-chip">
+                                                <?= kcw_h($row['staff_job']) ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <?= kcw_h($row['staff_phonenum']) ?>
+                                        </td>
+                                        <td>
+                                            <?= kcw_h($row['staff_state']) ?>
+                                        </td>
+                                        <td>
+                                            <?= date('d M Y',strtotime($row['staff_hiredate'])) ?>
+                                        </td>
+                                        <td>RM <?= number_format((float)$row['staff_salary'],2) ?>
+                                        </td>
+                                        <td>
+                                            <a class="ios-btn ios-btn-secondary ios-btn-sm" href="edit_staff.php?id=<?= $row['staff_id'] ?>">
+                                                <i class="fa-solid fa-pen">
+                                                </i> Edit</a>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mobile-staff">
+                            <?php foreach($staff_list as $row):$img='../../images/'.ltrim($row['staff_image']?:'uploads/default.png','/'); ?>
+                            <article class="ios-card staff-card">
+                                <div class="staff-card-head">
+                                    <div class="staff-person">
+                                        <img src="<?= kcw_h($img) ?>" onerror="this.src='../../images/uploads/default.png'" alt="">
+                                        <div>
+                                            <strong>
+                                                <?= kcw_h($row['staff_name']) ?>
+                                            </strong>
+                                            <span>
+                                                <?= kcw_h($row['staff_email']?:'No email') ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <a class="ios-btn ios-btn-secondary ios-btn-sm" href="edit_staff.php?id=<?= $row['staff_id'] ?>">
+                                        <i class="fa-solid fa-pen">
+                                        </i>
+                                    </a>
+                                </div>
+                                <div class="staff-card-meta">
+                                    <div>Role<strong>
+                                        <?= kcw_h($row['staff_job']) ?>
+                                    </strong>
+                                </div>
+                                <div>Salary<strong>RM <?= number_format((float)$row['staff_salary'],2) ?>
+                                </strong>
+                            </div>
+                            <div>State<strong>
+                                <?= kcw_h($row['staff_state']) ?>
+                            </strong>
+                        </div>
+                        <div>Phone<strong>
+                            <?= kcw_h($row['staff_phonenum']) ?>
+                        </strong>
+                    </div>
+                </div>
+            </article>
+        <?php endforeach; ?>
+    </div>
+</section>
+</main>
+<?php include __DIR__.'/../includes/footer.php'; ?>
+</body>
+</html>

@@ -25,8 +25,6 @@ $page_title = $page_title ?? 'Staff Portal';
     </script>
 
     <link rel="stylesheet" href="<?= $root_prefix ?>css/style.css">
-    <link rel="stylesheet" href="<?= $root_prefix ?>css/staff.css">
-    <link rel="stylesheet" href="<?= $root_prefix ?>css/ui-polish.css">
 
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <link

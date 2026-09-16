@@ -10,11 +10,30 @@ unset($_SESSION['success'], $_SESSION['login_success'], $_SESSION['error']);
         <span>More than a wash, it’s a revival.</span>
     </div>
 </footer>
-
 <?php if ($flash_success): ?>
-<div class="ios-toast success" role="status"><i class="fa-solid fa-circle-check"></i><div><strong>Done</strong><span><?= htmlspecialchars($flash_success) ?></span></div></div>
+    <div class="ios-toast success" role="status">
+        <i class="fa-solid fa-circle-check">
+        </i>
+        <div>
+            <strong>Done</strong>
+            <span>
+                <?= htmlspecialchars($flash_success) ?>
+            </span>
+        </div>
+    </div>
 <?php endif; ?>
 <?php if ($flash_error): ?>
-<div class="ios-toast error" role="alert"><i class="fa-solid fa-circle-exclamation"></i><div><strong>Something needs attention</strong><span><?= htmlspecialchars($flash_error) ?></span></div></div>
+    <div class="ios-toast error" role="alert">
+        <i class="fa-solid fa-circle-exclamation">
+        </i>
+        <div>
+            <strong>Something needs attention</strong>
+            <span>
+                <?= htmlspecialchars($flash_error) ?>
+            </span>
+        </div>
+    </div>
 <?php endif; ?>
-<script src="<?= $root_prefix ?>js/staff.js"></script>
+<script src="<?= $root_prefix ?>
+js/staff.js">
+</script>

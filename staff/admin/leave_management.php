@@ -1,13 +1,275 @@
 <?php
-session_start();require_once __DIR__.'/../../config.php';require_once __DIR__.'/../includes/helpers.php';if(!isset($_SESSION['staff_id'])){header('Location: ../../auth/staff_login.php');exit();}$staff_id=(int)$_SESSION['staff_id'];$stmt=$conn->prepare('SELECT * FROM staff WHERE staff_id=?');$stmt->execute([$staff_id]);$staff=$stmt->fetch(PDO::FETCH_ASSOC);if(!$staff||!kcw_admin_role($staff['staff_job'])){header('Location: ../staff_home.php');exit();}
-if(isset($_POST['set_status'])){$id=(int)($_POST['leave_id']??0);$status=$_POST['status']??'';if($id>0&&in_array($status,['Approved','Rejected'],true)){$stmt=$conn->prepare('UPDATE leave_application SET status=? WHERE leave_id=?');$stmt->execute([$status,$id]);$_SESSION['success']='Leave application '.$status.'.';}else $_SESSION['error']='Invalid leave action.';header('Location: leave_management.php');exit();}
-$search=trim($_GET['search']??'');$status=trim($_GET['status']??'');$where=[];$params=[];if($search!==''){$where[]='(staff.staff_name LIKE ? OR staff.staff_email LIKE ? OR leave_application.leave_type LIKE ?)';for($i=0;$i<3;$i++)$params[]='%'.$search.'%';}if($status!==''){$where[]='leave_application.status=?';$params[]=$status;}$sql='SELECT leave_application.*,staff.staff_name,staff.staff_email FROM leave_application JOIN staff ON leave_application.staff_id=staff.staff_id'.($where?' WHERE '.implode(' AND ',$where):'').' ORDER BY leave_application.leave_id DESC';$stmt=$conn->prepare($sql);$stmt->execute($params);$items=$stmt->fetchAll(PDO::FETCH_ASSOC);
-$counts=['Pending'=>0,'Approved'=>0,'Rejected'=>0];foreach($conn->query('SELECT status,COUNT(*) total FROM leave_application GROUP BY status')->fetchAll(PDO::FETCH_ASSOC) as $r){if(isset($counts[$r['status']]))$counts[$r['status']]=(int)$r['total'];}
-$root_prefix='../../';$page_title='Leave Management';include __DIR__.'/../includes/head.php';
+session_start();
+require_once __DIR__.'/../../config.php';
+require_once __DIR__.'/../includes/helpers.php';
+if(!isset($_SESSION['staff_id'])) {
+    header('Location: ../../auth/staff_login.php');
+    exit();
+}
+$staff_id=(int)$_SESSION['staff_id'];
+$stmt=$conn->prepare('SELECT * FROM staff WHERE staff_id=?');
+$stmt->execute([$staff_id]);
+$staff=$stmt->fetch(PDO::FETCH_ASSOC);
+if(!$staff||!kcw_admin_role($staff['staff_job'])) {
+    header('Location: ../staff_home.php');
+    exit();
+}
+if(isset($_POST['set_status'])) {
+    $id=(int)($_POST['leave_id']??0);
+    $status=$_POST['status']??'';
+    if($id>0&&in_array($status,['Approved','Rejected'],true)) {
+        $stmt=$conn->prepare('UPDATE leave_application SET status=? WHERE leave_id=?');
+        $stmt->execute([$status,$id]);
+        $_SESSION['success']='Leave application '.$status.'.';
+    } else $_SESSION['error']='Invalid leave action.';
+    header('Location: leave_management.php');
+    exit();
+}
+$search=trim($_GET['search']??'');
+$status=trim($_GET['status']??'');
+$where=[];
+$params=[];
+if($search!=='') {
+    $where[]='(staff.staff_name LIKE ? OR staff.staff_email LIKE ? OR leave_application.leave_type LIKE ?)';
+    for($i=0;$i<3;$i++)$params[]='%'.$search.'%';
+}
+if($status!=='') {
+    $where[]='leave_application.status=?';
+    $params[]=$status;
+}
+$sql = 'SELECT leave_application.*, staff.staff_name, staff.staff_email
+        FROM leave_application
+        JOIN staff ON leave_application.staff_id = staff.staff_id'
+    . ($where ? ' WHERE ' . implode(' AND ', $where) : '')
+    . ' ORDER BY leave_application.leave_id DESC';
+$stmt=$conn->prepare($sql);
+$stmt->execute($params);
+$items=$stmt->fetchAll(PDO::FETCH_ASSOC);
+$counts=['Pending'=>0,'Approved'=>0,'Rejected'=>0];
+foreach($conn->query('SELECT status,COUNT(*) total FROM leave_application GROUP BY status')->fetchAll(PDO::FETCH_ASSOC) as $r) {
+    if(isset($counts[$r['status']]))$counts[$r['status']]=(int)$r['total'];
+}
+$root_prefix='../../';
+$page_title='Leave Management';
+include __DIR__.'/../includes/head.php';
 ?>
 <style>
-.admin-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}.admin-stat{padding:17px}.admin-stat span{color:var(--staff-muted);font-size:.67rem;font-weight:850}.admin-stat strong{display:block;margin-top:3px;font-size:1.5rem}.filter-card{display:grid;grid-template-columns:1fr 210px auto;gap:10px;padding:15px;margin-bottom:14px}.queue{display:grid;gap:10px}.request-card{padding:17px}.request-top{display:flex;justify-content:space-between;gap:16px}.request-person strong{display:block}.request-person span{color:var(--staff-muted);font-size:.7rem}.request-type{margin-top:11px;font-size:.9rem;font-weight:800}.request-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:9px}.request-meta span{padding:6px 9px;border-radius:999px;background:var(--staff-surface-2);color:var(--staff-muted);font-size:.67rem}.request-reason{margin:13px 0 0;padding-top:12px;border-top:1px solid var(--staff-border);color:var(--staff-muted);font-size:.75rem}.request-actions{display:flex;gap:7px;margin-top:14px}.request-actions form{display:inline-flex}
-@media(max-width:700px){.filter-card{grid-template-columns:1fr}.admin-stats{grid-template-columns:1fr 1fr 1fr}.admin-stat{padding:13px 8px}.request-top{flex-direction:column}}
+.admin-stats {
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:10px;
+    margin-bottom:14px
+}
+.admin-stat {
+    padding:17px
+}
+.admin-stat span {
+    color:var(--staff-muted);
+    font-size:.67rem;
+    font-weight:850
+}
+.admin-stat strong {
+    display:block;
+    margin-top:3px;
+    font-size:1.5rem
+}
+.filter-card {
+    display:grid;
+    grid-template-columns:1fr 210px auto;
+    gap:10px;
+    padding:15px;
+    margin-bottom:14px
+}
+.queue {
+    display:grid;
+    gap:10px
+}
+.request-card {
+    padding:17px
+}
+.request-top {
+    display:flex;
+    justify-content:space-between;
+    gap:16px
+}
+.request-person strong {
+    display:block
+}
+.request-person span {
+    color:var(--staff-muted);
+    font-size:.7rem
+}
+.request-type {
+    margin-top:11px;
+    font-size:.9rem;
+    font-weight:800
+}
+.request-meta {
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:9px
+}
+.request-meta span {
+    padding:6px 9px;
+    border-radius:999px;
+    background:var(--staff-surface-2);
+    color:var(--staff-muted);
+    font-size:.67rem
+}
+.request-reason {
+    margin:13px 0 0;
+    padding-top:12px;
+    border-top:1px solid var(--staff-border);
+    color:var(--staff-muted);
+    font-size:.75rem
+}
+.request-actions {
+    display:flex;
+    gap:7px;
+    margin-top:14px
+}
+.request-actions form {
+    display:inline-flex
+}
+@media(max-width:700px) {
+    .filter-card {
+        grid-template-columns:1fr
+    }
+    .admin-stats {
+        grid-template-columns:1fr 1fr 1fr
+    }
+    .admin-stat {
+        padding:13px 8px
+    }
+    .request-top {
+        flex-direction:column
+    }
+}
 </style>
-</head><body class="staff-body"><?php include __DIR__.'/../includes/admin_header.php';include __DIR__.'/../includes/admin_toolbar.php';?>
-<main class="staff-main"><div class="staff-page-heading"><div><span class="staff-eyebrow"><i class="fa-solid fa-calendar-xmark"></i> Approval queue</span><h1>Leave management</h1><p>Review staff leave requests and make decisions from the same page.</p></div></div><section class="admin-stats"><article class="ios-card admin-stat"><span>PENDING</span><strong style="color:var(--staff-orange)"><?= $counts['Pending'] ?></strong></article><article class="ios-card admin-stat"><span>APPROVED</span><strong style="color:var(--staff-green)"><?= $counts['Approved'] ?></strong></article><article class="ios-card admin-stat"><span>REJECTED</span><strong style="color:var(--staff-red)"><?= $counts['Rejected'] ?></strong></article></section><form class="ios-card filter-card" method="GET"><div class="ios-field"><label>Search</label><input class="ios-input" name="search" value="<?= kcw_h($search) ?>" placeholder="Name, email or leave type"></div><div class="ios-field"><label>Status</label><select class="ios-select" name="status"><option value="">All statuses</option><?php foreach(['Pending','Approved','Rejected'] as $s):?><option value="<?= $s ?>" <?= $status===$s?'selected':'' ?>><?= $s ?></option><?php endforeach;?></select></div><button class="ios-btn ios-btn-primary"><i class="fa-solid fa-filter"></i> Filter</button></form><section class="queue"><?php if(!$items):?><article class="ios-card ios-empty"><i class="fa-regular fa-calendar-xmark"></i><strong>No leave applications found</strong><span>Try another filter.</span></article><?php endif;?><?php foreach($items as $r):$days=(new DateTime($r['start_date']))->diff(new DateTime($r['end_date']))->days+1;?><article class="ios-card request-card"><div class="request-top"><div class="request-person"><strong><?= kcw_h($r['staff_name']) ?></strong><span><?= kcw_h($r['staff_email']) ?></span></div><span class="ios-badge <?= kcw_status_class($r['status']) ?>"><?= kcw_h($r['status']) ?></span></div><div class="request-type"><?= kcw_h($r['leave_type']) ?></div><div class="request-meta"><span><i class="fa-regular fa-calendar"></i> <?= date('d M',strtotime($r['start_date'])) ?> → <?= date('d M Y',strtotime($r['end_date'])) ?></span><span><i class="fa-solid fa-clock"></i> <?= $days ?> day<?= $days===1?'':'s' ?></span><span><i class="fa-solid fa-paper-plane"></i> Applied <?= date('d M Y',strtotime($r['apply_date'])) ?></span></div><?php if($r['reason']):?><p class="request-reason"><?= kcw_h($r['reason']) ?></p><?php endif;?><?php if($r['status']==='Pending'):?><div class="request-actions"><form method="POST"><input type="hidden" name="leave_id" value="<?= $r['leave_id'] ?>"><input type="hidden" name="status" value="Approved"><button class="ios-btn ios-btn-success ios-btn-sm" name="set_status" data-confirm="Approve this leave application?"><i class="fa-solid fa-check"></i> Approve</button></form><form method="POST"><input type="hidden" name="leave_id" value="<?= $r['leave_id'] ?>"><input type="hidden" name="status" value="Rejected"><button class="ios-btn ios-btn-danger ios-btn-sm" name="set_status" data-confirm="Reject this leave application?"><i class="fa-solid fa-xmark"></i> Reject</button></form></div><?php endif;?></article><?php endforeach;?></section></main><?php include __DIR__.'/../includes/footer.php';?></body></html>
+</head>
+<body class="staff-body">
+    <?php include __DIR__.'/../includes/admin_header.php';include __DIR__.'/../includes/admin_toolbar.php'; ?>
+    <main class="staff-main">
+        <div class="staff-page-heading">
+            <div>
+                <span class="staff-eyebrow">
+                    <i class="fa-solid fa-calendar-xmark">
+                    </i> Approval queue</span>
+                    <h1>Leave management</h1>
+                    <p>Review staff leave requests and make decisions from the same page.</p>
+                </div>
+            </div>
+            <section class="admin-stats">
+                <article class="ios-card admin-stat">
+                    <span>PENDING</span>
+                    <strong style="color:var(--staff-orange)">
+                        <?= $counts['Pending'] ?>
+                    </strong>
+                </article>
+                <article class="ios-card admin-stat">
+                    <span>APPROVED</span>
+                    <strong style="color:var(--staff-green)">
+                        <?= $counts['Approved'] ?>
+                    </strong>
+                </article>
+                <article class="ios-card admin-stat">
+                    <span>REJECTED</span>
+                    <strong style="color:var(--staff-red)">
+                        <?= $counts['Rejected'] ?>
+                    </strong>
+                </article>
+            </section>
+            <form class="ios-card filter-card" method="GET">
+                <div class="ios-field">
+                    <label>Search</label>
+                    <input class="ios-input" name="search" value="<?= kcw_h($search) ?>" placeholder="Name, email or leave type">
+                </div>
+                <div class="ios-field">
+                    <label>Status</label>
+                    <select class="ios-select" name="status">
+                        <option value="">All statuses</option>
+                        <?php foreach(['Pending','Approved','Rejected'] as $s): ?>
+                            <option value="<?= $s ?>" <?= $status===$s?'selected':'' ?>>
+                                <?= $s ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <button class="ios-btn ios-btn-primary">
+                    <i class="fa-solid fa-filter">
+                    </i> Filter</button>
+                </form>
+                <section class="queue">
+                    <?php if(!$items): ?>
+                        <article class="ios-card ios-empty">
+                            <i class="fa-regular fa-calendar-xmark">
+                            </i>
+                            <strong>No leave applications found</strong>
+                            <span>Try another filter.</span>
+                        </article>
+                    <?php endif; ?>
+                    <?php foreach($items as $r):$days=(new DateTime($r['start_date']))->diff(new DateTime($r['end_date']))->days+1; ?>
+                    <article class="ios-card request-card">
+                        <div class="request-top">
+                            <div class="request-person">
+                                <strong>
+                                    <?= kcw_h($r['staff_name']) ?>
+                                </strong>
+                                <span>
+                                    <?= kcw_h($r['staff_email']) ?>
+                                </span>
+                            </div>
+                            <span class="ios-badge <?= kcw_status_class($r['status']) ?>">
+                                <?= kcw_h($r['status']) ?>
+                            </span>
+                        </div>
+                        <div class="request-type">
+                            <?= kcw_h($r['leave_type']) ?>
+                        </div>
+                        <div class="request-meta">
+                            <span>
+                                <i class="fa-regular fa-calendar">
+                                </i>
+                                <?= date('d M',strtotime($r['start_date'])) ?> → <?= date('d M Y',strtotime($r['end_date'])) ?>
+                            </span>
+                            <span>
+                                <i class="fa-solid fa-clock">
+                                </i>
+                                <?= $days ?> day<?= $days===1?'':'s' ?>
+                            </span>
+                            <span>
+                                <i class="fa-solid fa-paper-plane">
+                                </i> Applied <?= date('d M Y',strtotime($r['apply_date'])) ?>
+                            </span>
+                        </div>
+                        <?php if($r['reason']): ?>
+                            <p class="request-reason">
+                                <?= kcw_h($r['reason']) ?>
+                            </p>
+                        <?php endif; ?>
+                        <?php if($r['status']==='Pending'): ?>
+                            <div class="request-actions">
+                                <form method="POST">
+                                    <input type="hidden" name="leave_id" value="<?= $r['leave_id'] ?>">
+                                    <input type="hidden" name="status" value="Approved">
+                                    <button class="ios-btn ios-btn-success ios-btn-sm" name="set_status" data-confirm="Approve this leave application?">
+                                        <i class="fa-solid fa-check">
+                                        </i> Approve</button>
+                                    </form>
+                                    <form method="POST">
+                                        <input type="hidden" name="leave_id" value="<?= $r['leave_id'] ?>">
+                                        <input type="hidden" name="status" value="Rejected">
+                                        <button class="ios-btn ios-btn-danger ios-btn-sm" name="set_status" data-confirm="Reject this leave application?">
+                                            <i class="fa-solid fa-xmark">
+                                            </i> Reject</button>
+                                        </form>
+                                    </div>
+                                <?php endif; ?>
+                            </article>
+                        <?php endforeach; ?>
+                    </section>
+                </main>
+                <?php include __DIR__.'/../includes/footer.php'; ?>
+            </body>
+        </html>
