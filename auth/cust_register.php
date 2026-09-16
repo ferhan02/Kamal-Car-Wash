@@ -117,8 +117,8 @@ if (isset($_POST['register'])) {
     .register-page {
         min-height: 100vh;
         background:
-            radial-gradient(circle at 8% 4%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 22%),
-            transparent;
+            radial-gradient(circle at 8% 4%, color-mix(in srgb, var(--primary) 11%, transparent), transparent 20%),
+            var(--bg);
     }
     .register-top {
         display: flex;
