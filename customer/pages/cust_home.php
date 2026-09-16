@@ -161,6 +161,38 @@ include "../includes/header.php";
     color: #9fc5e8;
 }
 
+html[data-theme="light"] .hero-panel {
+    border-color: rgba(255, 255, 255, .72);
+    background: rgba(244, 248, 252, .92);
+    color: var(--heading);
+    box-shadow:
+        0 24px 55px rgba(7, 24, 40, .18),
+        inset 0 1px 0 rgba(255, 255, 255, .88);
+}
+
+html[data-theme="light"] .hero-panel-label {
+    color: var(--text-soft);
+}
+
+html[data-theme="light"] .hero-panel h2 {
+    color: var(--heading);
+}
+
+html[data-theme="light"] .hero-panel-list li {
+    color: var(--text);
+}
+
+html[data-theme="light"] .hero-panel-list i {
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+html[data-theme="dark"] .hero-panel {
+    border-color: rgba(255, 255, 255, .18);
+    background: rgba(18, 29, 43, .84);
+    box-shadow: 0 24px 55px rgba(0, 0, 0, .28);
+}
+
 .home-strip {
     position: relative;
     z-index: 3;
@@ -172,8 +204,12 @@ include "../includes/header.php";
     overflow: hidden;
     border: 1px solid var(--border);
     border-radius: 20px;
-    background: var(--surface);
+    background: var(--surface-solid);
     box-shadow: var(--shadow-md);
+}
+
+html[data-theme="dark"] .home-strip-grid {
+    background: var(--surface-solid);
 }
 .strip-item {
     display: flex;
@@ -242,7 +278,9 @@ include "../includes/header.php";
 
 .packages-section {
     padding: 70px 0 82px;
-    background: var(--surface-2);
+    background: transparent;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
 }
 .package-grid {
     display: grid;

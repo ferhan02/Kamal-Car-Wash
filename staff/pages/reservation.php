@@ -2,42 +2,398 @@
 session_start();
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../includes/helpers.php';
-if(!isset($_SESSION['staff_id'])){header('Location: ../../auth/staff_login.php');exit();}
-$staff_id=(int)$_SESSION['staff_id'];$stmt=$conn->prepare('SELECT * FROM staff WHERE staff_id=?');$stmt->execute([$staff_id]);$staff=$stmt->fetch(PDO::FETCH_ASSOC);if(!$staff){session_destroy();header('Location: ../../auth/staff_login.php');exit();}
-if(isset($_POST['update_status'])){
-    $service_id=(int)($_POST['service_id']??0);$status=$_POST['status']??'';$allowed=['Pending','Confirmed','Completed','Cancelled'];
-    if($service_id>0 && in_array($status,$allowed,true)){ $stmt=$conn->prepare('UPDATE service SET service_status=? WHERE service_id=?');$stmt->execute([$status,$service_id]);$_SESSION['success']='Reservation status updated.'; }
-    else $_SESSION['error']='Invalid reservation update.';
-    header('Location: reservation.php'.(!empty($_SERVER['QUERY_STRING'])?'?'.$_SERVER['QUERY_STRING']:''));exit();
+if (!isset($_SESSION['staff_id'])) {
+    header('Location: ../../auth/staff_login.php');
+    exit();
 }
-$date=trim($_GET['date']??'');$search=trim($_GET['search']??'');$status_filter=trim($_GET['status']??'');$page=max(1,(int)($_GET['page']??1));$limit=10;$offset=($page-1)*$limit;
-$where=[];$params=[];
-if($date!==''){ $where[]='service.service_date=?';$params[]=$date; }
-if($status_filter!==''){ $where[]='service.service_status=?';$params[]=$status_filter; }
-if($search!==''){ $where[]='(customer.cust_name LIKE ? OR customer.cust_phonenum LIKE ? OR vehicle.vehicle_platenum LIKE ? OR package.package_name LIKE ?)';for($i=0;$i<4;$i++)$params[]='%'.$search.'%'; }
-$whereSql=$where?'WHERE '.implode(' AND ',$where):'';
-$base=' FROM service JOIN customer ON service.cust_id=customer.cust_id JOIN vehicle ON service.vehicle_id=vehicle.vehicle_id JOIN package ON service.package_id=package.package_id ';
-$stmt=$conn->prepare('SELECT COUNT(*)'.$base.$whereSql);$stmt->execute($params);$total=(int)$stmt->fetchColumn();$total_pages=max(1,(int)ceil($total/$limit));
-$sql='SELECT service.service_id,customer.cust_name,customer.cust_phonenum,vehicle.vehicle_platenum,vehicle.vehicle_brand,vehicle.vehicle_model,vehicle.vehicle_type,package.package_name,package.package_price,service.service_date,service.service_time,service.service_status'.$base.$whereSql.' ORDER BY service.service_date ASC,service.service_time ASC LIMIT '.$limit.' OFFSET '.$offset;
-$stmt=$conn->prepare($sql);$stmt->execute($params);$reservations=$stmt->fetchAll(PDO::FETCH_ASSOC);
-$root_prefix='../../';$page_title='Reservations';include __DIR__.'/../includes/head.php';
+$staff_id = (int)$_SESSION['staff_id'];
+$stmt = $conn->prepare('SELECT * FROM staff WHERE staff_id=?');
+$stmt->execute([$staff_id]);
+$staff = $stmt->fetch(PDO::FETCH_ASSOC);
+if (!$staff) {
+    session_destroy();
+    header('Location: ../../auth/staff_login.php');
+    exit();
+}
+if (isset($_POST['update_status'])) {
+    $service_id = (int)($_POST['service_id'] ?? 0);
+    $status = $_POST['status'] ?? '';
+    $allowed = ['Pending', 'Confirmed', 'Completed', 'Cancelled'];
+    if ($service_id > 0 && in_array($status, $allowed, true)) {
+        $stmt = $conn->prepare('UPDATE service SET service_status=? WHERE service_id=?');
+        $stmt->execute([$status, $service_id]);
+        $_SESSION['success'] = 'Reservation status updated.';
+    } else $_SESSION['error'] = 'Invalid reservation update.';
+    header('Location: reservation.php' . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : ''));
+    exit();
+}
+$date = trim($_GET['date'] ?? '');
+$search = trim($_GET['search'] ?? '');
+$status_filter = trim($_GET['status'] ?? '');
+$page = max(1, (int)($_GET['page'] ?? 1));
+$limit = 10;
+$offset = ($page - 1) * $limit;
+$where = [];
+$params = [];
+if ($date !== '') {
+    $where[] = 'service.service_date=?';
+    $params[] = $date;
+}
+if ($status_filter !== '') {
+    $where[] = 'service.service_status=?';
+    $params[] = $status_filter;
+}
+if ($search !== '') {
+    $where[] = '(customer.cust_name LIKE ? OR customer.cust_phonenum LIKE ? OR vehicle.vehicle_platenum LIKE ? OR package.package_name LIKE ?)';
+    for ($i = 0; $i < 4; $i++)$params[] = '%' . $search . '%';
+}
+$whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+$base = '
+    FROM service
+    JOIN customer ON service.cust_id = customer.cust_id
+    JOIN vehicle ON service.vehicle_id = vehicle.vehicle_id
+    JOIN package ON service.package_id = package.package_id
+';
+$stmt = $conn->prepare('SELECT COUNT(*)' . $base . $whereSql);
+$stmt->execute($params);
+$total = (int)$stmt->fetchColumn();
+$total_pages = max(1, (int)ceil($total / $limit));
+$sql = '
+    SELECT
+        service.service_id,
+        customer.cust_name,
+        customer.cust_phonenum,
+        vehicle.vehicle_platenum,
+        vehicle.vehicle_brand,
+        vehicle.vehicle_model,
+        vehicle.vehicle_type,
+        package.package_name,
+        package.package_price,
+        service.service_date,
+        service.service_time,
+        service.service_status
+' . $base . $whereSql
+    . ' ORDER BY service.service_date ASC, service.service_time ASC'
+    . ' LIMIT ' . $limit . ' OFFSET ' . $offset;
+$stmt = $conn->prepare($sql);
+$stmt->execute($params);
+$reservations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$root_prefix = '../../';
+$page_title = 'Reservations';
+include __DIR__ . '/../includes/head.php';
 ?>
 <style>
-.filter-card{padding:16px;margin-bottom:14px}.filter-form{display:grid;grid-template-columns:1fr 180px 180px auto;gap:10px;align-items:end}.reservation-summary{display:flex;align-items:center;gap:9px;color:var(--staff-muted);font-size:.76rem}.customer-cell strong{display:block}.customer-cell span,.vehicle-cell small{color:var(--staff-muted)}.action-stack{display:flex;flex-wrap:wrap;gap:6px}.table-card{padding:14px}.pagination{display:flex;justify-content:center;gap:5px;margin-top:14px}.pagination a{min-width:36px;height:36px;display:grid;place-items:center;border:1px solid var(--staff-border);border-radius:12px;background:var(--staff-surface-solid);color:var(--staff-muted);text-decoration:none;font-size:.75rem;font-weight:800}.pagination a.active{background:var(--staff-blue);color:#fff;border-color:transparent}.price{font-weight:800}.mobile-reservation-list{display:none}.reservation-mobile-card{padding:17px}.reservation-mobile-top{display:flex;justify-content:space-between;gap:12px}.reservation-mobile-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:15px 0}.reservation-mobile-meta div{padding:10px;border-radius:13px;background:var(--staff-surface-2);font-size:.72rem}.reservation-mobile-meta span{display:block;color:var(--staff-muted);font-size:.65rem;margin-bottom:2px}
-@media(max-width:900px){.filter-form{grid-template-columns:1fr 1fr}.filter-form .search-wide{grid-column:1/-1}.desktop-table{display:none}.mobile-reservation-list{display:grid;gap:10px}.table-card{padding:0;background:transparent;border:0;box-shadow:none}}
-@media(max-width:560px){.filter-form{grid-template-columns:1fr}.filter-form .search-wide{grid-column:auto}}
+.filter-card {
+    padding: 16px;
+    margin-bottom: 14px
+}
+.filter-form {
+    display: grid;
+    grid-template-columns: 1fr 180px 180px auto;
+    gap: 10px;
+    align-items: end
+}
+.reservation-summary {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--staff-muted);
+    font-size: .76rem
+}
+.customer-cell strong {
+    display: block
+}
+.customer-cell span, .vehicle-cell small {
+    color: var(--staff-muted)
+}
+.action-stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px
+}
+.table-card {
+    padding: 14px
+}
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-top: 14px
+}
+.pagination a {
+    min-width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--staff-border);
+    border-radius: 12px;
+    background: var(--staff-surface-solid);
+    color: var(--staff-muted);
+    text-decoration: none;
+    font-size: .75rem;
+    font-weight: 800
+}
+.pagination a.active {
+    background: var(--staff-blue);
+    color: #fff;
+    border-color: transparent
+}
+.price {
+    font-weight: 800
+}
+.mobile-reservation-list {
+    display: none
+}
+.reservation-mobile-card {
+    padding: 17px
+}
+.reservation-mobile-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px
+}
+.reservation-mobile-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 15px 0
+}
+.reservation-mobile-meta div {
+    padding: 10px;
+    border-radius: 13px;
+    background: var(--staff-surface-2);
+    font-size: .72rem
+}
+.reservation-mobile-meta span {
+    display: block;
+    color: var(--staff-muted);
+    font-size: .65rem;
+    margin-bottom: 2px
+}
+@media (max-width: 900px) {
+    .filter-form {
+        grid-template-columns: 1fr 1fr
+    }
+    .filter-form .search-wide {
+        grid-column: 1/-1
+    }
+    .desktop-table {
+        display: none
+    }
+    .mobile-reservation-list {
+        display: grid;
+        gap: 10px
+    }
+    .table-card {
+        padding: 0;
+        background: transparent;
+        border: 0;
+        box-shadow: none
+    }
+}
+@media (max-width: 560px) {
+    .filter-form {
+        grid-template-columns: 1fr
+    }
+    .filter-form .search-wide {
+        grid-column: auto
+    }
+}
 </style>
-</head><body class="staff-body">
-<?php include __DIR__.'/../includes/header.php'; ?>
-<?php if(kcw_admin_role($staff['staff_job'])) include __DIR__.'/../includes/admin_toolbar.php'; ?>
-<main class="staff-main">
-<div class="staff-page-heading"><div><span class="staff-eyebrow"><i class="fa-solid fa-calendar-check"></i> Operations</span><h1>Reservations</h1><p>Search upcoming appointments and move each booking through the wash workflow.</p></div><div class="reservation-summary"><i class="fa-solid fa-list-check"></i><strong><?= $total ?></strong> result<?= $total===1?'':'s' ?></div></div>
-<section class="ios-card filter-card"><form class="filter-form" method="GET"><div class="ios-field search-wide"><label>Search</label><input class="ios-input" name="search" value="<?= kcw_h($search) ?>" placeholder="Customer, phone, plate or package"></div><div class="ios-field"><label>Date</label><input class="ios-input" type="date" name="date" value="<?= kcw_h($date) ?>"></div><div class="ios-field"><label>Status</label><select class="ios-select" name="status"><option value="">All statuses</option><?php foreach(['Pending','Confirmed','Completed','Cancelled'] as $s):?><option value="<?= $s ?>" <?= $status_filter===$s?'selected':'' ?>><?= $s ?></option><?php endforeach;?></select></div><button class="ios-btn ios-btn-primary"><i class="fa-solid fa-magnifying-glass"></i> Filter</button></form></section>
-<section class="ios-card table-card">
-<div class="ios-table-wrap desktop-table"><table class="ios-table"><thead><tr><th>#</th><th>Customer</th><th>Vehicle</th><th>Package</th><th>Date & time</th><th>Status</th><th>Action</th></tr></thead><tbody>
-<?php if(!$reservations):?><tr><td colspan="7"><div class="ios-empty"><i class="fa-regular fa-calendar-xmark"></i><strong>No reservations found</strong><span>Try changing your filters.</span></div></td></tr><?php endif;?>
-<?php foreach($reservations as $i=>$row):?><tr><td><?= $offset+$i+1 ?></td><td class="customer-cell"><strong><?= kcw_h($row['cust_name']) ?></strong><span><?= kcw_h($row['cust_phonenum']) ?></span></td><td class="vehicle-cell"><strong><?= kcw_h($row['vehicle_platenum']) ?></strong><small><?= kcw_h($row['vehicle_brand'].' '.$row['vehicle_model'].' · '.$row['vehicle_type']) ?></small></td><td><strong><?= kcw_h($row['package_name']) ?></strong><div class="price">RM <?= number_format((float)$row['package_price'],2) ?></div></td><td><?= date('d M Y',strtotime($row['service_date'])) ?><br><span style="color:var(--staff-muted)"><?= date('h:i A',strtotime($row['service_time'])) ?></span></td><td><span class="ios-badge <?= kcw_status_class($row['service_status']) ?>"><?= kcw_h($row['service_status']) ?></span></td><td><div class="action-stack"><?php if($row['service_status']==='Pending'):?><form method="POST"><input type="hidden" name="service_id" value="<?= $row['service_id'] ?>"><input type="hidden" name="status" value="Confirmed"><button class="ios-btn ios-btn-success ios-btn-sm" name="update_status">Confirm</button></form><?php endif;?><?php if($row['service_status']==='Confirmed'):?><form method="POST"><input type="hidden" name="service_id" value="<?= $row['service_id'] ?>"><input type="hidden" name="status" value="Completed"><button class="ios-btn ios-btn-primary ios-btn-sm" name="update_status">Complete</button></form><?php endif;?><?php if(!in_array($row['service_status'],['Cancelled','Completed'],true)):?><form method="POST"><input type="hidden" name="service_id" value="<?= $row['service_id'] ?>"><input type="hidden" name="status" value="Cancelled"><button class="ios-btn ios-btn-danger ios-btn-sm" name="update_status" data-confirm="Cancel this reservation?">Cancel</button></form><?php endif;?></div></td></tr><?php endforeach;?></tbody></table></div>
-<div class="mobile-reservation-list"><?php foreach($reservations as $row):?><article class="ios-card reservation-mobile-card"><div class="reservation-mobile-top"><div><strong><?= kcw_h($row['cust_name']) ?></strong><div style="color:var(--staff-muted);font-size:.73rem"><?= kcw_h($row['vehicle_platenum'].' · '.$row['package_name']) ?></div></div><span class="ios-badge <?= kcw_status_class($row['service_status']) ?>"><?= kcw_h($row['service_status']) ?></span></div><div class="reservation-mobile-meta"><div><span>Date</span><?= date('d M Y',strtotime($row['service_date'])) ?></div><div><span>Time</span><?= date('h:i A',strtotime($row['service_time'])) ?></div><div><span>Vehicle</span><?= kcw_h($row['vehicle_brand'].' '.$row['vehicle_model']) ?></div><div><span>Price</span>RM <?= number_format((float)$row['package_price'],2) ?></div></div><div class="action-stack"><?php if($row['service_status']==='Pending'):?><form method="POST"><input type="hidden" name="service_id" value="<?= $row['service_id'] ?>"><input type="hidden" name="status" value="Confirmed"><button class="ios-btn ios-btn-success ios-btn-sm" name="update_status">Confirm</button></form><?php endif;?><?php if($row['service_status']==='Confirmed'):?><form method="POST"><input type="hidden" name="service_id" value="<?= $row['service_id'] ?>"><input type="hidden" name="status" value="Completed"><button class="ios-btn ios-btn-primary ios-btn-sm" name="update_status">Complete</button></form><?php endif;?></div></article><?php endforeach;?></div>
-<?php if($total_pages>1):?><nav class="pagination"><?php for($i=1;$i<=$total_pages;$i++):$q=http_build_query(['search'=>$search,'date'=>$date,'status'=>$status_filter,'page'=>$i]);?><a class="<?= $page===$i?'active':'' ?>" href="?<?= kcw_h($q) ?>"><?= $i ?></a><?php endfor;?></nav><?php endif;?>
+</head>
+<body class="staff-body">
+    <?php include __DIR__.'/../includes/header.php'; ?>
+    <?php if (kcw_admin_role($staff['staff_job'])) include __DIR__.'/../includes/admin_toolbar.php'; ?>
+    <main class="staff-main">
+        <div class="staff-page-heading">
+            <div>
+                <span class="staff-eyebrow"><i class="fa-solid fa-calendar-check"></i> Operations</span>
+                <h1>Reservations</h1>
+                <p>Search upcoming appointments and move each booking through the wash workflow.</p>
+            </div>
+            <div class="reservation-summary">
+                <i class="fa-solid fa-list-check"></i>
+                <strong><?= $total ?></strong> result<?= $total===1?'':'s' ?>
+            </div>
+        </div>
+        <section class="ios-card filter-card">
+            <form class="filter-form" method="GET">
+                <div class="ios-field search-wide">
+                    <label>Search</label>
+                    <input class="ios-input" name="search" value="<?= kcw_h($search) ?>" placeholder="Customer, phone, plate or package">
+                </div>
+                <div class="ios-field">
+                    <label>Date</label>
+                    <input class="ios-input" type="date" name="date" value="<?= kcw_h($date) ?>">
+                </div>
+                <div class="ios-field">
+                    <label>Status</label>
+                    <select class="ios-select" name="status">
+                        <option value="">All statuses</option>
+                        <?php foreach (['Pending','Confirmed','Completed','Cancelled'] as $s): ?>
+                            <option value="<?= $s ?>" <?= $status_filter===$s?'selected':'' ?>>
+                                <?= $s ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <button class="ios-btn ios-btn-primary">
+                    <i class="fa-solid fa-magnifying-glass"></i> Filter</button>
+            </form>
+        </section>
+        <section class="ios-card table-card">
+            <div class="ios-table-wrap desktop-table">
+                <table class="ios-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Customer</th>
+                            <th>Vehicle</th>
+                            <th>Package</th>
+                            <th>Date & time</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!$reservations): ?>
+                            <tr>
+                                <td colspan="7">
+                                    <div class="ios-empty">
+                                        <i class="fa-regular fa-calendar-xmark"></i>
+                                        <strong>No reservations found</strong>
+                                        <span>Try changing your filters.</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endif; ?>
+                        <?php foreach ($reservations as $i=>$row): ?>
+                            <tr>
+                                <td>
+                                    <?= $offset+$i+1 ?>
+                                </td>
+                                <td class="customer-cell">
+                                    <strong><?= kcw_h($row['cust_name']) ?></strong>
+                                    <span><?= kcw_h($row['cust_phonenum']) ?></span>
+                                </td>
+                                <td class="vehicle-cell">
+                                    <strong><?= kcw_h($row['vehicle_platenum']) ?></strong>
+                                    <small>
+                                        <?= kcw_h($row['vehicle_brand'].' '.$row['vehicle_model'].' · '.$row['vehicle_type']) ?>
+                                    </small>
+                                </td>
+                                <td>
+                                    <strong><?= kcw_h($row['package_name']) ?></strong>
+                                    <div class="price">RM <?= number_format((float)$row['package_price'],2) ?>
+                                    </div>
+                                </td>
+                                <td>
+                                    <?= date('d M Y',strtotime($row['service_date'])) ?>
+                                    <br>
+                                    <span style="color:var(--staff-muted)"><?= date('h:i A',strtotime($row['service_time'])) ?></span>
+                                </td>
+                                <td>
+                                    <span class="ios-badge <?= kcw_status_class($row['service_status']) ?>">
+                                        <?= kcw_h($row['service_status']) ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="action-stack">
+                                        <?php if ($row['service_status']==='Pending'): ?>
+                                            <form method="POST">
+                                                <input type="hidden" name="service_id" value="<?= $row['service_id'] ?>">
+                                                <input type="hidden" name="status" value="Confirmed">
+                                                <button class="ios-btn ios-btn-success ios-btn-sm" name="update_status">Confirm</button>
+                                            </form>
+                                        <?php endif; ?>
+                                        <?php if ($row['service_status']==='Confirmed'): ?>
+                                            <form method="POST">
+                                                <input type="hidden" name="service_id" value="<?= $row['service_id'] ?>">
+                                                <input type="hidden" name="status" value="Completed">
+                                                <button class="ios-btn ios-btn-primary ios-btn-sm" name="update_status">Complete</button>
+                                            </form>
+                                        <?php endif; ?>
+                                        <?php if (!in_array($row['service_status'],['Cancelled','Completed'],true)): ?>
+                                            <form method="POST">
+                                                <input type="hidden" name="service_id" value="<?= $row['service_id'] ?>">
+                                                <input type="hidden" name="status" value="Cancelled">
+                                                <button
+                                                class="ios-btn ios-btn-danger ios-btn-sm"
+                                                name="update_status"
+                                                data-confirm="Cancel this reservation?"
+                                                >
+                                                Cancel
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <div class="mobile-reservation-list">
+            <?php foreach ($reservations as $row): ?>
+                <article class="ios-card reservation-mobile-card">
+                    <div class="reservation-mobile-top">
+                        <div>
+                            <strong><?= kcw_h($row['cust_name']) ?></strong>
+                            <div style="color:var(--staff-muted);font-size:.73rem">
+                                <?= kcw_h($row['vehicle_platenum'].' · '.$row['package_name']) ?>
+                            </div>
+                        </div>
+                        <span class="ios-badge <?= kcw_status_class($row['service_status']) ?>">
+                            <?= kcw_h($row['service_status']) ?>
+                        </span>
+                    </div>
+                    <div class="reservation-mobile-meta">
+                        <div>
+                            <span>Date</span>
+                            <?= date('d M Y',strtotime($row['service_date'])) ?>
+                        </div>
+                        <div>
+                            <span>Time</span>
+                            <?= date('h:i A',strtotime($row['service_time'])) ?>
+                        </div>
+                        <div>
+                            <span>Vehicle</span>
+                            <?= kcw_h($row['vehicle_brand'].' '.$row['vehicle_model']) ?>
+                        </div>
+                        <div>
+                            <span>Price</span>RM <?= number_format((float)$row['package_price'],2) ?>
+                        </div>
+                    </div>
+                    <div class="action-stack">
+                        <?php if ($row['service_status']==='Pending'): ?>
+                            <form method="POST">
+                                <input type="hidden" name="service_id" value="<?= $row['service_id'] ?>">
+                                <input type="hidden" name="status" value="Confirmed">
+                                <button class="ios-btn ios-btn-success ios-btn-sm" name="update_status">Confirm</button>
+                            </form>
+                        <?php endif; ?>
+                        <?php if ($row['service_status']==='Confirmed'): ?>
+                            <form method="POST">
+                                <input type="hidden" name="service_id" value="<?= $row['service_id'] ?>">
+                                <input type="hidden" name="status" value="Completed">
+                                <button class="ios-btn ios-btn-primary ios-btn-sm" name="update_status">Complete</button>
+                            </form>
+                        <?php endif; ?>
+                    </div>
+                </article>
+            <?php endforeach; ?>
+        </div>
+        <?php if ($total_pages>1): ?>
+            <nav class="pagination">
+                <?php for ($i=1; $i<=$total_pages; $i++):$q=http_build_query(['search'=>$search,'date'=>$date,'status'=>$status_filter,'page'=>$i]); ?>
+                <a class="<?= $page===$i?'active':'' ?>" href="?<?= kcw_h($q) ?>">
+                    <?= $i ?>
+                </a>
+            <?php endfor; ?>
+        </nav>
+    <?php endif; ?>
 </section>
-</main><?php include __DIR__.'/../includes/footer.php'; ?></body></html>
+</main>
+<?php include __DIR__.'/../includes/footer.php'; ?>
+</body>
+</html>

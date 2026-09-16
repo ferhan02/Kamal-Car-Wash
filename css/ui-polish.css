@@ -9,8 +9,8 @@
    ========================================================= */
 
 :root {
-    --kcw-pattern-wash-light: rgba(233, 238, 244, .84);
-    --kcw-pattern-wash-dark: rgba(13, 19, 29, .89);
+    --kcw-pattern-wash-light: rgba(233, 238, 244, .87);
+    --kcw-pattern-wash-dark: rgba(13, 19, 29, .92);
 }
 
 body:not(.staff-body) {
@@ -43,11 +43,11 @@ html[data-theme="dark"] {
 }
 
 body.staff-body::before {
-    opacity: .17;
+    opacity: .13;
 }
 
 html[data-theme="dark"] body.staff-body::before {
-    opacity: .10;
+    opacity: .08;
     filter: grayscale(.12) brightness(.88);
 }
 
@@ -274,4 +274,44 @@ html[data-theme="dark"] .ios-toast {
     .customer-header-actions {
         gap: 6px;
     }
+}
+
+
+/* =========================================================
+   SHARED DATA TABLE ALIGNMENT
+   ========================================================= */
+
+.ios-table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.ios-table th,
+.ios-table td {
+    vertical-align: middle;
+    text-align: center;
+    border-right: 1px solid var(--staff-border);
+}
+
+.ios-table th:last-child,
+.ios-table td:last-child {
+    border-right: 0;
+}
+
+.ios-table thead th {
+    border-bottom: 1px solid var(--staff-border);
+}
+
+.ios-table tbody td {
+    border-top: 0;
+    border-bottom: 1px solid var(--staff-border);
+}
+
+.ios-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.ios-table .staff-person,
+.ios-table .action-stack {
+    justify-content: center;
 }

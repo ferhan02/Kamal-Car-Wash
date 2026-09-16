@@ -1,12 +1,252 @@
 <?php
-session_start();require_once __DIR__.'/../../config.php';require_once __DIR__.'/../includes/helpers.php';if(!isset($_SESSION['staff_id'])){header('Location: ../../auth/staff_login.php');exit();}$staff_id=(int)$_SESSION['staff_id'];$stmt=$conn->prepare('SELECT * FROM staff WHERE staff_id=?');$stmt->execute([$staff_id]);$staff=$stmt->fetch(PDO::FETCH_ASSOC);if(!$staff||!kcw_admin_role($staff['staff_job'])){header('Location: ../staff_home.php');exit();}
-if(isset($_POST['set_status'])){$id=(int)($_POST['advance_id']??0);$status=$_POST['status']??'';if($id>0&&in_array($status,['Approved','Rejected'],true)){$stmt=$conn->prepare('UPDATE salary_advance SET status=? WHERE advance_id=?');$stmt->execute([$status,$id]);$_SESSION['success']='Salary advance request '.$status.'.';}else $_SESSION['error']='Invalid salary advance action.';header('Location: salary_advance_management.php');exit();}
-$search=trim($_GET['search']??'');$status=trim($_GET['status']??'');$where=[];$params=[];if($search!==''){$where[]='(staff.staff_name LIKE ? OR staff.staff_email LIKE ? OR salary_advance.reason LIKE ?)';for($i=0;$i<3;$i++)$params[]='%'.$search.'%';}if($status!==''){$where[]='salary_advance.status=?';$params[]=$status;}$sql='SELECT salary_advance.*,staff.staff_name,staff.staff_email,staff.staff_salary FROM salary_advance JOIN staff ON salary_advance.staff_id=staff.staff_id'.($where?' WHERE '.implode(' AND ',$where):'').' ORDER BY salary_advance.advance_id DESC';$stmt=$conn->prepare($sql);$stmt->execute($params);$items=$stmt->fetchAll(PDO::FETCH_ASSOC);$counts=['Pending'=>0,'Approved'=>0,'Rejected'=>0];foreach($conn->query('SELECT status,COUNT(*) total FROM salary_advance GROUP BY status')->fetchAll(PDO::FETCH_ASSOC) as $r){if(isset($counts[$r['status']]))$counts[$r['status']]=(int)$r['total'];}$approvedTotal=(float)$conn->query("SELECT COALESCE(SUM(amount),0) FROM salary_advance WHERE status='Approved'")->fetchColumn();
-$root_prefix='../../';$page_title='Salary Advance Management';include __DIR__.'/../includes/head.php';
+session_start();
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../includes/helpers.php';
+if (!isset($_SESSION['staff_id'])) {
+    header('Location: ../../auth/staff_login.php');
+    exit();
+}
+$staff_id = (int)$_SESSION['staff_id'];
+$stmt = $conn->prepare('SELECT * FROM staff WHERE staff_id=?');
+$stmt->execute([$staff_id]);
+$staff = $stmt->fetch(PDO::FETCH_ASSOC);
+if (!$staff || !kcw_admin_role($staff['staff_job'])) {
+    header('Location: ../staff_home.php');
+    exit();
+}
+if (isset($_POST['set_status'])) {
+    $id = (int)($_POST['advance_id'] ?? 0);
+    $status = $_POST['status'] ?? '';
+    if ($id > 0 && in_array($status, ['Approved', 'Rejected'], true)) {
+        $stmt = $conn->prepare('UPDATE salary_advance SET status=? WHERE advance_id=?');
+        $stmt->execute([$status, $id]);
+        $_SESSION['success'] = 'Salary advance request ' . $status . '.';
+    } else $_SESSION['error'] = 'Invalid salary advance action.';
+    header('Location: salary_advance_management.php');
+    exit();
+}
+$search = trim($_GET['search'] ?? '');
+$status = trim($_GET['status'] ?? '');
+$where = [];
+$params = [];
+if ($search !== '') {
+    $where[] = '(staff.staff_name LIKE ? OR staff.staff_email LIKE ? OR salary_advance.reason LIKE ?)';
+    for ($i = 0; $i < 3; $i++)$params[] = '%' . $search . '%';
+}
+if ($status !== '') {
+    $where[] = 'salary_advance.status=?';
+    $params[] = $status;
+}
+$sql = 'SELECT salary_advance.*, staff.staff_name, staff.staff_email, staff.staff_salary
+        FROM salary_advance
+        JOIN staff ON salary_advance.staff_id = staff.staff_id'
+    . ($where ? ' WHERE ' . implode(' AND ', $where) : '')
+    . ' ORDER BY salary_advance.advance_id DESC';
+$stmt = $conn->prepare($sql);
+$stmt->execute($params);
+$items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$counts = ['Pending' => 0, 'Approved' => 0, 'Rejected' => 0];
+foreach ($conn->query('SELECT status,COUNT(*) total FROM salary_advance GROUP BY status')->fetchAll(PDO::FETCH_ASSOC) as $r) {
+    if (isset($counts[$r['status']]))$counts[$r['status']] = (int)$r['total'];
+}
+$approvedTotal = (float)$conn->query("SELECT COALESCE(SUM(amount),0) FROM salary_advance WHERE status='Approved'")->fetchColumn();
+$root_prefix = '../../';
+$page_title = 'Salary Advance Management';
+include __DIR__ . '/../includes/head.php';
 ?>
 <style>
-.admin-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.admin-stat{padding:17px}.admin-stat span{color:var(--staff-muted);font-size:.67rem;font-weight:850}.admin-stat strong{display:block;margin-top:3px;font-size:1.4rem}.filter-card{display:grid;grid-template-columns:1fr 210px auto;gap:10px;padding:15px;margin-bottom:14px}.advance-list{display:grid;gap:10px}.advance-card{padding:17px}.advance-top{display:flex;justify-content:space-between;gap:16px}.advance-person strong{display:block}.advance-person span{display:block;color:var(--staff-muted);font-size:.67rem}.advance-amount{margin-top:12px;font-size:1.45rem;font-weight:850;letter-spacing:-.04em}.advance-limit{color:var(--staff-muted);font-size:.69rem}.advance-reason{margin:13px 0 0;padding-top:12px;border-top:1px solid var(--staff-border);color:var(--staff-muted);font-size:.74rem}.advance-actions{display:flex;gap:7px;margin-top:14px}.advance-actions form{display:inline-flex}
-@media(max-width:850px){.admin-stats{grid-template-columns:repeat(2,1fr)}.filter-card{grid-template-columns:1fr 1fr}.filter-card .search{grid-column:1/-1}}@media(max-width:560px){.filter-card{grid-template-columns:1fr}.filter-card .search{grid-column:auto}.advance-top{flex-direction:column}}
+.admin-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 14px
+}
+.admin-stat {
+    padding: 17px
+}
+.admin-stat span {
+    color: var(--staff-muted);
+    font-size: .67rem;
+    font-weight: 850
+}
+.admin-stat strong {
+    display: block;
+    margin-top: 3px;
+    font-size: 1.4rem
+}
+.filter-card {
+    display: grid;
+    grid-template-columns: 1fr 210px auto;
+    gap: 10px;
+    padding: 15px;
+    margin-bottom: 14px
+}
+.advance-list {
+    display: grid;
+    gap: 10px
+}
+.advance-card {
+    padding: 17px
+}
+.advance-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px
+}
+.advance-person strong {
+    display: block
+}
+.advance-person span {
+    display: block;
+    color: var(--staff-muted);
+    font-size: .67rem
+}
+.advance-amount {
+    margin-top: 12px;
+    font-size: 1.45rem;
+    font-weight: 850;
+    letter-spacing: -.04em
+}
+.advance-limit {
+    color: var(--staff-muted);
+    font-size: .69rem
+}
+.advance-reason {
+    margin: 13px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--staff-border);
+    color: var(--staff-muted);
+    font-size: .74rem
+}
+.advance-actions {
+    display: flex;
+    gap: 7px;
+    margin-top: 14px
+}
+.advance-actions form {
+    display: inline-flex
+}
+@media (max-width: 850px) {
+    .admin-stats {
+        grid-template-columns: repeat(2, 1fr)
+    }
+    .filter-card {
+        grid-template-columns: 1fr 1fr
+    }
+    .filter-card .search {
+        grid-column: 1/-1
+    }
+}
+@media (max-width: 560px) {
+    .filter-card {
+        grid-template-columns: 1fr
+    }
+    .filter-card .search {
+        grid-column: auto
+    }
+    .advance-top {
+        flex-direction: column
+    }
+}
 </style>
-</head><body class="staff-body"><?php include __DIR__.'/../includes/admin_header.php';include __DIR__.'/../includes/admin_toolbar.php';?>
-<main class="staff-main"><div class="staff-page-heading"><div><span class="staff-eyebrow"><i class="fa-solid fa-money-check-dollar"></i> Approval queue</span><h1>Salary advances</h1><p>Review requested amounts against each staff member’s current basic salary.</p></div></div><section class="admin-stats"><article class="ios-card admin-stat"><span>PENDING</span><strong style="color:var(--staff-orange)"><?= $counts['Pending'] ?></strong></article><article class="ios-card admin-stat"><span>APPROVED</span><strong style="color:var(--staff-green)"><?= $counts['Approved'] ?></strong></article><article class="ios-card admin-stat"><span>REJECTED</span><strong style="color:var(--staff-red)"><?= $counts['Rejected'] ?></strong></article><article class="ios-card admin-stat"><span>APPROVED VALUE</span><strong>RM <?= number_format($approvedTotal,2) ?></strong></article></section><form class="ios-card filter-card" method="GET"><div class="ios-field search"><label>Search</label><input class="ios-input" name="search" value="<?= kcw_h($search) ?>" placeholder="Staff, email or reason"></div><div class="ios-field"><label>Status</label><select class="ios-select" name="status"><option value="">All statuses</option><?php foreach(['Pending','Approved','Rejected'] as $s):?><option value="<?= $s ?>" <?= $status===$s?'selected':'' ?>><?= $s ?></option><?php endforeach;?></select></div><button class="ios-btn ios-btn-primary"><i class="fa-solid fa-filter"></i> Filter</button></form><section class="advance-list"><?php if(!$items):?><article class="ios-card ios-empty"><i class="fa-solid fa-money-bill-transfer"></i><strong>No salary advance requests</strong><span>Try another filter.</span></article><?php endif;?><?php foreach($items as $r):$max=(float)$r['staff_salary']*.5;$pct=$max>0?min(100,round((float)$r['amount']/$max*100)):0;?><article class="ios-card advance-card"><div class="advance-top"><div class="advance-person"><strong><?= kcw_h($r['staff_name']) ?></strong><span><?= kcw_h($r['staff_email']) ?> · requested <?= date('d M Y',strtotime($r['request_date'])) ?></span></div><span class="ios-badge <?= kcw_status_class($r['status']) ?>"><?= kcw_h($r['status']) ?></span></div><div class="advance-amount">RM <?= number_format((float)$r['amount'],2) ?></div><div class="advance-limit"><?= $pct ?>% of allowed maximum · max RM <?= number_format($max,2) ?></div><div style="height:7px;margin-top:9px;border-radius:999px;background:var(--staff-surface-2);overflow:hidden"><i style="display:block;width:<?= $pct ?>%;height:100%;background:var(--staff-blue);border-radius:inherit"></i></div><p class="advance-reason"><?= kcw_h($r['reason']) ?></p><?php if($r['status']==='Pending'):?><div class="advance-actions"><form method="POST"><input type="hidden" name="advance_id" value="<?= $r['advance_id'] ?>"><input type="hidden" name="status" value="Approved"><button class="ios-btn ios-btn-success ios-btn-sm" name="set_status" data-confirm="Approve this salary advance?"><i class="fa-solid fa-check"></i> Approve</button></form><form method="POST"><input type="hidden" name="advance_id" value="<?= $r['advance_id'] ?>"><input type="hidden" name="status" value="Rejected"><button class="ios-btn ios-btn-danger ios-btn-sm" name="set_status" data-confirm="Reject this salary advance?"><i class="fa-solid fa-xmark"></i> Reject</button></form></div><?php endif;?></article><?php endforeach;?></section></main><?php include __DIR__.'/../includes/footer.php';?></body></html>
+</head>
+<body class="staff-body">
+    <?php include __DIR__.'/../includes/admin_header.php';include __DIR__.'/../includes/admin_toolbar.php'; ?>
+    <main class="staff-main">
+        <div class="staff-page-heading">
+            <div>
+                <span class="staff-eyebrow"><i class="fa-solid fa-money-check-dollar"></i> Approval queue</span>
+                <h1>Salary advances</h1>
+                <p>Review requested amounts against each staff member’s current basic salary.</p>
+            </div>
+        </div>
+        <section class="admin-stats">
+            <article class="ios-card admin-stat">
+                <span>PENDING</span>
+                <strong style="color:var(--staff-orange)"><?= $counts['Pending'] ?></strong>
+            </article>
+            <article class="ios-card admin-stat">
+                <span>APPROVED</span>
+                <strong style="color:var(--staff-green)"><?= $counts['Approved'] ?></strong>
+            </article>
+            <article class="ios-card admin-stat">
+                <span>REJECTED</span>
+                <strong style="color:var(--staff-red)"><?= $counts['Rejected'] ?></strong>
+            </article>
+            <article class="ios-card admin-stat">
+                <span>APPROVED VALUE</span>
+                <strong>RM <?= number_format($approvedTotal,2) ?>
+                </strong>
+            </article>
+        </section>
+        <form class="ios-card filter-card" method="GET">
+            <div class="ios-field search">
+                <label>Search</label>
+                <input class="ios-input" name="search" value="<?= kcw_h($search) ?>" placeholder="Staff, email or reason">
+            </div>
+            <div class="ios-field">
+                <label>Status</label>
+                <select class="ios-select" name="status">
+                    <option value="">All statuses</option>
+                    <?php foreach (['Pending','Approved','Rejected'] as $s): ?>
+                        <option value="<?= $s ?>" <?= $status===$s?'selected':'' ?>>
+                            <?= $s ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <button class="ios-btn ios-btn-primary">
+                <i class="fa-solid fa-filter"></i> Filter</button>
+        </form>
+        <section class="advance-list">
+            <?php if (!$items): ?>
+                <article class="ios-card ios-empty">
+                    <i class="fa-solid fa-money-bill-transfer"></i>
+                    <strong>No salary advance requests</strong>
+                    <span>Try another filter.</span>
+                </article>
+            <?php endif; ?>
+            <?php foreach ($items as $r):$max=(float)$r['staff_salary']*.5; $pct=$max>0?min(100,round((float)$r['amount']/$max*100)):0; ?>
+            <article class="ios-card advance-card">
+                <div class="advance-top">
+                    <div class="advance-person">
+                        <strong><?= kcw_h($r['staff_name']) ?></strong>
+                        <span><?= kcw_h($r['staff_email']) ?> · requested <?= date('d M Y',strtotime($r['request_date'])) ?></span>
+                    </div>
+                    <span class="ios-badge <?= kcw_status_class($r['status']) ?>">
+                        <?= kcw_h($r['status']) ?>
+                    </span>
+                </div>
+                <div class="advance-amount">RM <?= number_format((float)$r['amount'],2) ?>
+                </div>
+                <div class="advance-limit">
+                    <?= $pct ?>% of allowed maximum · max RM <?= number_format($max,2) ?>
+                </div>
+                <div style="height:7px;margin-top:9px;border-radius:999px;background:var(--staff-surface-2);overflow:hidden">
+                    <i style="display:block;width:<?= $pct ?>%;height:100%;background:var(--staff-blue);border-radius:inherit">
+                    </i>
+                </div>
+                <p class="advance-reason"><?= kcw_h($r['reason']) ?></p>
+                <?php if ($r['status']==='Pending'): ?>
+                    <div class="advance-actions">
+                        <form method="POST">
+                            <input type="hidden" name="advance_id" value="<?= $r['advance_id'] ?>">
+                            <input type="hidden" name="status" value="Approved">
+                            <button class="ios-btn ios-btn-success ios-btn-sm" name="set_status" data-confirm="Approve this salary advance?">
+                                <i class="fa-solid fa-check"></i> Approve</button>
+                        </form>
+                        <form method="POST">
+                            <input type="hidden" name="advance_id" value="<?= $r['advance_id'] ?>">
+                            <input type="hidden" name="status" value="Rejected">
+                            <button class="ios-btn ios-btn-danger ios-btn-sm" name="set_status" data-confirm="Reject this salary advance?">
+                                <i class="fa-solid fa-xmark"></i> Reject</button>
+                        </form>
+                    </div>
+                <?php endif; ?>
+            </article>
+        <?php endforeach; ?>
+    </section>
+</main>
+<?php include __DIR__.'/../includes/footer.php'; ?>
+</body>
+</html>

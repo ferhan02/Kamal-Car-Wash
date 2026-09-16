@@ -108,6 +108,7 @@ if (isset($_POST['register'])) {
     </script>
 
     <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/ui-polish.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
           integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg=="
           crossorigin="anonymous" referrerpolicy="no-referrer">
@@ -117,8 +118,8 @@ if (isset($_POST['register'])) {
     .register-page {
         min-height: 100vh;
         background:
-            radial-gradient(circle at 8% 4%, color-mix(in srgb, var(--primary) 11%, transparent), transparent 20%),
-            var(--bg);
+            radial-gradient(circle at 8% 4%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 22%),
+            transparent;
     }
     .register-top {
         display: flex;
