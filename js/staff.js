@@ -8,7 +8,7 @@
         return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
 
-    function applyTheme(theme) {
+    function applyTheme(theme, notify = false) {
         root.dataset.theme = theme;
         localStorage.setItem(storageKey, theme);
         document.querySelectorAll('[data-theme-icon]').forEach(icon => {
@@ -17,21 +17,76 @@
         document.querySelectorAll('[data-theme-label]').forEach(label => {
             label.textContent = theme === 'dark' ? 'Use light mode' : 'Use dark mode';
         });
+        if (notify) toast(theme === 'dark' ? 'Dark appearance enabled.' : 'Light appearance enabled.', {
+            title: theme === 'dark' ? 'Dark mode' : 'Light mode', tone: 'info', duration: 1800
+        });
     }
 
+    function iconFor(tone) {
+        return { success: 'fa-circle-check', danger: 'fa-triangle-exclamation', warning: 'fa-circle-exclamation', info: 'fa-circle-info' }[tone] || 'fa-circle-info';
+    }
+
+    function toast(message, options = {}) {
+        if (!message) return;
+        const tone = options.tone || 'info';
+        const title = options.title || ({ success: 'Done', danger: 'Something needs attention', warning: 'Check this', info: 'Kamal Car Wash' }[tone]);
+        const el = document.createElement('div');
+        el.className = `ios-toast ${tone}`;
+        el.setAttribute('role', tone === 'danger' ? 'alert' : 'status');
+        el.innerHTML = `<i class="fa-solid ${iconFor(tone)}"></i><div><strong></strong><span></span></div>`;
+        el.querySelector('strong').textContent = title;
+        el.querySelector('span').textContent = message;
+        document.body.appendChild(el);
+        requestAnimationFrame(() => el.classList.add('show'));
+        setTimeout(() => {
+            el.classList.remove('show');
+            setTimeout(() => el.remove(), 260);
+        }, options.duration || 3400);
+    }
+
+    function confirmGlass(options = {}) {
+        return new Promise(resolve => {
+            const tone = options.tone || 'danger';
+            const overlay = document.createElement('div');
+            overlay.className = 'kcw-alert-overlay staff-alert-overlay';
+            overlay.innerHTML = `
+                <div class="kcw-alert-card ${tone}" role="dialog" aria-modal="true" aria-labelledby="staff-alert-title">
+                    <button class="kcw-alert-close" type="button" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                    <div class="kcw-alert-icon"><i class="fa-solid ${iconFor(tone)}"></i></div>
+                    <h2 id="staff-alert-title"></h2><p></p>
+                    <div class="kcw-alert-actions"><button type="button" class="kcw-alert-btn secondary" data-cancel></button><button type="button" class="kcw-alert-btn primary" data-confirm-ok></button></div>
+                </div>`;
+            overlay.querySelector('h2').textContent = options.title || 'Are you sure?';
+            overlay.querySelector('p').textContent = options.message || 'Please confirm this action.';
+            overlay.querySelector('[data-cancel]').textContent = options.cancelText || 'Cancel';
+            overlay.querySelector('[data-confirm-ok]').textContent = options.confirmText || 'Continue';
+            document.body.appendChild(overlay);
+            requestAnimationFrame(() => overlay.classList.add('open'));
+            const finish = answer => {
+                overlay.classList.remove('open');
+                setTimeout(() => overlay.remove(), 180);
+                resolve(answer);
+            };
+            overlay.querySelector('[data-confirm-ok]').addEventListener('click', () => finish(true), { once: true });
+            overlay.querySelector('[data-cancel]').addEventListener('click', () => finish(false), { once: true });
+            overlay.querySelector('.kcw-alert-close').addEventListener('click', () => finish(false), { once: true });
+            overlay.addEventListener('click', e => { if (e.target === overlay) finish(false); });
+        });
+    }
+
+    window.KamalUI = { toast, confirm: confirmGlass };
     applyTheme(preferredTheme());
 
-    document.addEventListener('click', event => {
+    document.addEventListener('click', async event => {
         const themeButton = event.target.closest('[data-theme-toggle]');
         if (themeButton) {
-            applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
+            applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
             return;
         }
 
         const menuButton = event.target.closest('[data-staff-menu-toggle]');
         if (menuButton) {
-            const nav = document.querySelector('[data-staff-nav]');
-            if (nav) nav.classList.toggle('open');
+            document.querySelector('[data-staff-nav]')?.classList.toggle('open');
             return;
         }
 
@@ -47,46 +102,53 @@
             return;
         }
 
-        if (!event.target.closest('.staff-header')) {
-            document.querySelector('[data-staff-nav]')?.classList.remove('open');
+        const confirmTarget = event.target.closest('[data-confirm], a[href*="logout.php"]');
+        if (confirmTarget && confirmTarget.dataset.kcwConfirmed !== '1') {
+            event.preventDefault();
+            const isLogout = confirmTarget.matches('a[href*="logout.php"]');
+            const ok = await confirmGlass({
+                title: confirmTarget.dataset.confirmTitle || (isLogout ? 'Sign out?' : 'Confirm action'),
+                message: confirmTarget.dataset.confirm || (isLogout ? 'You will need to sign in again to access the staff portal.' : 'Are you sure you want to continue?'),
+                confirmText: confirmTarget.dataset.confirmText || (isLogout ? 'Sign out' : 'Continue'),
+                cancelText: confirmTarget.dataset.cancelText || 'Cancel',
+                tone: confirmTarget.dataset.confirmTone || 'danger'
+            });
+            if (ok) {
+                confirmTarget.dataset.kcwConfirmed = '1';
+                if (confirmTarget.tagName === 'A') window.location.href = confirmTarget.href;
+                else if (confirmTarget.form) confirmTarget.form.requestSubmit();
+                else confirmTarget.click();
+            }
+            return;
         }
+
+        if (!event.target.closest('.staff-header')) document.querySelector('[data-staff-nav]')?.classList.remove('open');
     });
 
-    const clock = document.querySelector('[data-staff-clock]');
-    const updateClock = () => {
-        if (!clock) return;
-        clock.textContent = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date());
-    };
-    updateClock();
-    setInterval(updateClock, 30000);
-
-    document.querySelectorAll('.ios-toast').forEach(toast => {
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translate(-50%, -8px)';
-            setTimeout(() => toast.remove(), 250);
-        }, 3400);
+    document.querySelectorAll('.ios-toast').forEach(existing => {
+        const message = existing.querySelector('span')?.textContent?.trim();
+        const title = existing.querySelector('strong')?.textContent?.trim();
+        const tone = existing.classList.contains('error') ? 'danger' : existing.classList.contains('success') ? 'success' : 'info';
+        existing.remove();
+        toast(message, { title, tone });
     });
 
-    document.querySelectorAll('[data-confirm]').forEach(element => {
-        element.addEventListener('click', event => {
-            const message = element.dataset.confirm || 'Are you sure?';
-            if (!window.confirm(message)) event.preventDefault();
-        });
-    });
-
-    document.querySelectorAll('[data-auto-submit]').forEach(element => {
-        element.addEventListener('change', () => element.form?.submit());
-    });
+    document.querySelectorAll('[data-auto-submit]').forEach(element => element.addEventListener('change', () => element.form?.submit()));
 
     document.querySelectorAll('[data-file-preview]').forEach(input => {
         input.addEventListener('change', () => {
             const file = input.files?.[0];
-            const target = document.querySelector(input.dataset.filePreview);
-            if (!file || !target) return;
+            const targets = document.querySelectorAll(input.dataset.filePreview);
+            if (!file || !targets.length) return;
+            if (file.size > 2000000) {
+                input.value = '';
+                toast('Please choose an image smaller than 2 MB.', { title: 'Photo is too large', tone: 'warning' });
+                return;
+            }
             const reader = new FileReader();
-            reader.onload = e => target.src = e.target.result;
+            reader.onload = e => targets.forEach(target => target.src = e.target.result);
             reader.readAsDataURL(file);
+            toast('The new photo is ready. Save your profile to apply it.', { title: 'Photo selected', tone: 'info', duration: 2400 });
         });
     });
 })();

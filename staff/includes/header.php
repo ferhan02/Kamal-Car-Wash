@@ -16,12 +16,13 @@ $nav = [
     ['leave.php', $root_prefix . 'staff/pages/leave.php', 'fa-plane-departure', 'Leave'],
     ['salary_advance.php', $root_prefix . 'staff/pages/salary_advance.php', 'fa-hand-holding-dollar', 'Advance'],
 ];
+$admin_nav = [
+    ['staff_management.php', 'fa-users-gear', 'Staff management', $root_prefix . 'staff/admin/staff_management.php'],
+    ['leave_management.php', 'fa-calendar-xmark', 'Leave approvals', $root_prefix . 'staff/admin/leave_management.php'],
+    ['overtime_management.php', 'fa-business-time', 'Overtime approvals', $root_prefix . 'staff/admin/overtime_management.php'],
+    ['salary_advance_management.php', 'fa-money-check-dollar', 'Advance approvals', $root_prefix . 'staff/admin/salary_advance_management.php'],
+];
 ?>
-<div class="staff-system-bar" aria-hidden="true">
-    <span class="staff-system-time" data-staff-clock><?= date('H:i') ?></span>
-    <span class="staff-system-center"></span>
-    <span class="staff-system-icons"><i class="fa-solid fa-signal"></i><i class="fa-solid fa-wifi"></i><i class="fa-solid fa-battery-three-quarters"></i></span>
-</div>
 <div class="staff-header-wrap">
 <header class="staff-header">
     <div class="staff-header-row">
@@ -34,9 +35,6 @@ $nav = [
             <?php foreach ($nav as [$file, $href, $icon, $label]): ?>
                 <a href="<?= $href ?>" class="<?= $current_file === $file ? 'active' : '' ?>"><i class="fa-solid <?= $icon ?>"></i><span><?= $label ?></span></a>
             <?php endforeach; ?>
-            <?php if ($is_admin_role): ?>
-                <a href="<?= $root_prefix ?>staff/admin/staff_management.php" class="<?= str_contains($_SERVER['PHP_SELF'] ?? '', '/staff/admin/') ? 'active' : '' ?>"><i class="fa-solid fa-shield-halved"></i><span>Admin</span></a>
-            <?php endif; ?>
         </nav>
 
         <div class="staff-actions">
@@ -45,10 +43,25 @@ $nav = [
                 <img src="<?= htmlspecialchars($staff_image_url) ?>" alt="<?= htmlspecialchars($staff_name) ?> profile photo" onerror="this.src='<?= $root_prefix ?>images/uploads/default.png'">
                 <span><?= htmlspecialchars($staff_name) ?></span>
             </a>
+            <a href="<?= $root_prefix ?>auth/logout.php" class="staff-icon-button logout" title="Sign out"
+               data-confirm-title="Sign out?" data-confirm="You will need to sign in again to access the staff portal." data-confirm-text="Sign out" data-confirm-tone="danger">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            </a>
             <button type="button" class="staff-icon-button staff-menu-toggle" data-staff-menu-toggle aria-label="Open navigation"><i class="fa-solid fa-bars"></i></button>
         </div>
     </div>
 </header>
+
+<?php if ($is_admin_role): ?>
+<div class="staff-admin-strip" aria-label="Administration panel">
+    <div class="staff-admin-label"><i class="fa-solid fa-shield-halved"></i><span>Admin panel</span></div>
+    <nav class="staff-admin-links">
+        <?php foreach ($admin_nav as [$file, $icon, $label, $href]): ?>
+            <a href="<?= $href ?>" class="<?= $current_file === $file ? 'active' : '' ?>"><i class="fa-solid <?= $icon ?>"></i><?= htmlspecialchars($label) ?></a>
+        <?php endforeach; ?>
+    </nav>
+</div>
+<?php endif; ?>
 </div>
 
 <nav class="staff-mobile-dock" aria-label="Quick navigation">
