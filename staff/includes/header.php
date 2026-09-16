@@ -1,12 +1,39 @@
 <?php
 $root_prefix = $root_prefix ?? '../../';
 $current_file = basename($_SERVER['PHP_SELF'] ?? '');
-$staff_name = $staff['staff_name'] ?? ($_SESSION['staff_name'] ?? 'Staff');
-$staff_job = $staff['staff_job'] ?? ($_SESSION['staff_job'] ?? 'Staff');
-$staff_image = $staff['staff_image'] ?? 'uploads/default.png';
-if (!$staff_image) $staff_image = 'uploads/default.png';
+
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
+
+if (!isset($conn)) {
+    require_once __DIR__ . '/../../config.php';
+}
+
+$headerStaff = null;
+
+if (isset($_SESSION['staff_id'])) {
+    $headerStaffStmt = $conn->prepare(
+        'SELECT staff_name, staff_job, staff_image FROM staff WHERE staff_id = ? LIMIT 1'
+    );
+    $headerStaffStmt->execute([(int) $_SESSION['staff_id']]);
+    $headerStaff = $headerStaffStmt->fetch(PDO::FETCH_ASSOC);
+}
+
+$staff_name = $headerStaff['staff_name']
+    ?? ($_SESSION['staff_name'] ?? 'Staff');
+$staff_job = $headerStaff['staff_job']
+    ?? ($_SESSION['staff_job'] ?? 'Staff');
+$staff_image = $headerStaff['staff_image']
+    ?? 'uploads/default.png';
+
+if (!$staff_image) {
+    $staff_image = 'uploads/default.png';
+}
+
 $staff_image_url = $root_prefix . 'images/' . ltrim($staff_image, '/');
 $is_admin_role = in_array($staff_job, ['Owner', 'Manager', 'Supervisor'], true);
+
 $nav = [
     ['staff_home.php', $root_prefix . 'staff/staff_home.php', 'fa-house', 'Home'],
     ['reservation.php', $root_prefix . 'staff/pages/reservation.php', 'fa-calendar-check', 'Reservations'],
@@ -16,57 +43,182 @@ $nav = [
     ['leave.php', $root_prefix . 'staff/pages/leave.php', 'fa-plane-departure', 'Leave'],
     ['salary_advance.php', $root_prefix . 'staff/pages/salary_advance.php', 'fa-hand-holding-dollar', 'Advance'],
 ];
+
 $admin_nav = [
-    ['staff_management.php', 'fa-users-gear', 'Staff management', $root_prefix . 'staff/admin/staff_management.php'],
-    ['leave_management.php', 'fa-calendar-xmark', 'Leave approvals', $root_prefix . 'staff/admin/leave_management.php'],
-    ['overtime_management.php', 'fa-business-time', 'Overtime approvals', $root_prefix . 'staff/admin/overtime_management.php'],
-    ['salary_advance_management.php', 'fa-money-check-dollar', 'Advance approvals', $root_prefix . 'staff/admin/salary_advance_management.php'],
+    [
+        'staff_management.php',
+        'fa-users-gear',
+        'Staff management',
+        $root_prefix . 'staff/admin/staff_management.php'
+    ],
+    [
+        'leave_management.php',
+        'fa-calendar-xmark',
+        'Leave approvals',
+        $root_prefix . 'staff/admin/leave_management.php'
+    ],
+    [
+        'overtime_management.php',
+        'fa-business-time',
+        'Overtime approvals',
+        $root_prefix . 'staff/admin/overtime_management.php'
+    ],
+    [
+        'salary_advance_management.php',
+        'fa-money-check-dollar',
+        'Advance approvals',
+        $root_prefix . 'staff/admin/salary_advance_management.php'
+    ],
 ];
 ?>
+
 <div class="staff-header-wrap">
-<header class="staff-header">
-    <div class="staff-header-row">
-        <a class="staff-brand" href="<?= $root_prefix ?>staff/staff_home.php">
-            <img src="<?= $root_prefix ?>images/logo.png" class="staff-brand-logo" alt="Kamal Car Wash logo">
-            <span class="staff-brand-copy"><strong>KAMAL CAR WASH</strong><span>Staff Operations</span></span>
-        </a>
+    <header class="staff-header">
+        <div class="staff-header-row">
+            <a class="staff-brand" href="<?= $root_prefix ?>staff/staff_home.php">
+                <img
+                    src="<?= $root_prefix ?>images/logo.png"
+                    class="staff-brand-logo"
+                    alt="Kamal Car Wash logo"
+                >
 
-        <nav class="staff-nav" data-staff-nav aria-label="Staff navigation">
-            <?php foreach ($nav as [$file, $href, $icon, $label]): ?>
-                <a href="<?= $href ?>" class="<?= $current_file === $file ? 'active' : '' ?>"><i class="fa-solid <?= $icon ?>"></i><span><?= $label ?></span></a>
-            <?php endforeach; ?>
-        </nav>
+                <span class="staff-brand-copy">
+                    <strong>KAMAL CAR WASH</strong>
+                    <span>Staff Operations</span>
+                </span>
+            </a>
 
-        <div class="staff-actions">
-            <button type="button" class="staff-icon-button" data-theme-toggle aria-label="Toggle dark mode" title="Toggle appearance"><i class="fa-solid fa-moon" data-theme-icon></i></button>
-            <a href="<?= $root_prefix ?>staff/pages/update_profile.php" class="staff-profile-pill" title="Profile">
-                <img src="<?= htmlspecialchars($staff_image_url) ?>" alt="<?= htmlspecialchars($staff_name) ?> profile photo" onerror="this.src='<?= $root_prefix ?>images/uploads/default.png'">
-                <span><?= htmlspecialchars($staff_name) ?></span>
-            </a>
-            <a href="<?= $root_prefix ?>auth/logout.php" class="staff-icon-button logout" title="Sign out"
-               data-confirm-title="Sign out?" data-confirm="You will need to sign in again to access the staff portal." data-confirm-text="Sign out" data-confirm-tone="danger">
-                <i class="fa-solid fa-arrow-right-from-bracket"></i>
-            </a>
-            <button type="button" class="staff-icon-button staff-menu-toggle" data-staff-menu-toggle aria-label="Open navigation"><i class="fa-solid fa-bars"></i></button>
+            <nav
+                class="staff-nav"
+                data-staff-nav
+                aria-label="Staff navigation"
+            >
+                <?php foreach ($nav as [$file, $href, $icon, $label]): ?>
+                    <a
+                        href="<?= $href ?>"
+                        class="<?= $current_file === $file ? 'active' : '' ?>"
+                    >
+                        <i class="fa-solid <?= $icon ?>"></i>
+                        <span><?= $label ?></span>
+                    </a>
+                <?php endforeach; ?>
+            </nav>
+
+            <div class="staff-actions">
+                <button
+                    type="button"
+                    class="staff-icon-button"
+                    data-theme-toggle
+                    aria-label="Toggle dark mode"
+                    title="Toggle appearance"
+                >
+                    <i class="fa-solid fa-moon" data-theme-icon></i>
+                </button>
+
+                <div class="kcw-profile-menu" data-profile-menu-root>
+                    <button
+                        type="button"
+                        class="kcw-profile-trigger"
+                        data-profile-menu-toggle
+                        aria-label="Open staff account menu"
+                        aria-expanded="false"
+                    >
+                        <img
+                            src="<?= htmlspecialchars($staff_image_url) ?>"
+                            alt="<?= htmlspecialchars($staff_name) ?> profile photo"
+                            onerror="this.src='<?= $root_prefix ?>images/uploads/default.png'"
+                        >
+                    </button>
+
+                    <div class="kcw-profile-dropdown" data-profile-menu>
+                        <div class="kcw-profile-dropdown-head">
+                            <img
+                                src="<?= htmlspecialchars($staff_image_url) ?>"
+                                alt=""
+                                onerror="this.src='<?= $root_prefix ?>images/uploads/default.png'"
+                            >
+
+                            <div>
+                                <strong><?= htmlspecialchars($staff_name) ?></strong>
+                                <span><?= htmlspecialchars($staff_job) ?></span>
+                            </div>
+                        </div>
+
+                        <a href="<?= $root_prefix ?>staff/pages/update_profile.php">
+                            <i class="fa-solid fa-user-pen"></i>
+                            Profile
+                        </a>
+
+                        <a
+                            class="logout"
+                            href="<?= $root_prefix ?>auth/logout.php"
+                            data-confirm-title="Sign out?"
+                            data-confirm="You will need to sign in again to access the staff portal."
+                            data-confirm-text="Sign out"
+                            data-confirm-tone="danger"
+                        >
+                            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                            Sign out
+                        </a>
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    class="staff-icon-button staff-menu-toggle"
+                    data-staff-menu-toggle
+                    aria-label="Open navigation"
+                >
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+            </div>
         </div>
-    </div>
-</header>
+    </header>
 
-<?php if ($is_admin_role): ?>
-<div class="staff-admin-strip" aria-label="Administration panel">
-    <div class="staff-admin-label"><i class="fa-solid fa-shield-halved"></i><span>Admin panel</span></div>
-    <nav class="staff-admin-links">
-        <?php foreach ($admin_nav as [$file, $icon, $label, $href]): ?>
-            <a href="<?= $href ?>" class="<?= $current_file === $file ? 'active' : '' ?>"><i class="fa-solid <?= $icon ?>"></i><?= htmlspecialchars($label) ?></a>
-        <?php endforeach; ?>
-    </nav>
-</div>
-<?php endif; ?>
+    <?php if ($is_admin_role): ?>
+        <div class="staff-admin-strip" aria-label="Administration panel">
+            <div class="staff-admin-label">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>Admin panel</span>
+            </div>
+
+            <nav class="staff-admin-links">
+                <?php foreach ($admin_nav as [$file, $icon, $label, $href]): ?>
+                    <a
+                        href="<?= $href ?>"
+                        class="<?= $current_file === $file ? 'active' : '' ?>"
+                    >
+                        <i class="fa-solid <?= $icon ?>"></i>
+                        <?= htmlspecialchars($label) ?>
+                    </a>
+                <?php endforeach; ?>
+            </nav>
+        </div>
+    <?php endif; ?>
 </div>
 
 <nav class="staff-mobile-dock" aria-label="Quick navigation">
-    <a href="<?= $root_prefix ?>staff/staff_home.php" class="<?= $current_file === 'staff_home.php' ? 'active' : '' ?>"><i class="fa-solid fa-house"></i><span>Home</span></a>
-    <a href="<?= $root_prefix ?>staff/pages/reservation.php" class="<?= $current_file === 'reservation.php' ? 'active' : '' ?>"><i class="fa-solid fa-calendar-check"></i><span>Bookings</span></a>
-    <a href="<?= $root_prefix ?>staff/pages/attendance.php" class="<?= $current_file === 'attendance.php' ? 'active' : '' ?>"><i class="fa-solid fa-calendar-days"></i><span>Attendance</span></a>
-    <a href="<?= $root_prefix ?>staff/pages/update_profile.php" class="<?= $current_file === 'update_profile.php' ? 'active' : '' ?>"><i class="fa-solid fa-user"></i><span>Profile</span></a>
+    <a
+        href="<?= $root_prefix ?>staff/staff_home.php"
+        class="<?= $current_file === 'staff_home.php' ? 'active' : '' ?>"
+    >
+        <i class="fa-solid fa-house"></i>
+        <span>Home</span>
+    </a>
+
+    <a
+        href="<?= $root_prefix ?>staff/pages/reservation.php"
+        class="<?= $current_file === 'reservation.php' ? 'active' : '' ?>"
+    >
+        <i class="fa-solid fa-calendar-check"></i>
+        <span>Bookings</span>
+    </a>
+
+    <a
+        href="<?= $root_prefix ?>staff/pages/attendance.php"
+        class="<?= $current_file === 'attendance.php' ? 'active' : '' ?>"
+    >
+        <i class="fa-solid fa-calendar-days"></i>
+        <span>Attendance</span>
+    </a>
 </nav>
