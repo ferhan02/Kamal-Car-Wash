@@ -109,7 +109,7 @@ html[data-theme="dark"] body.staff-body::after {
     padding: 8px;
     border: 1px solid var(--border, var(--staff-border));
     border-radius: 20px;
-    background: color-mix(in srgb, var(--surface, var(--staff-surface)) 92%, transparent);
+    background: color-mix(in srgb, var(--surface, var(--staff-surface)) 100%, transparent);
     box-shadow:
         0 24px 60px rgba(15, 23, 42, .18),
         inset 0 1px 0 rgba(255, 255, 255, .24);
