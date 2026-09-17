@@ -1,0 +1,90 @@
+/*
+ * Kamal Car Wash — shared customer motion layer
+ * Applies only to customer-facing portal pages that use the shared footer.
+ */
+
+body:not(.staff-body) {
+    --kcw-pattern-parallax-y: 0px;
+    overflow-x: clip;
+    background-position:
+        center,
+        center var(--kcw-pattern-parallax-y);
+}
+
+.kcw-motion {
+    --kcw-motion-x: 0px;
+    --kcw-motion-y: 42px;
+    --kcw-motion-scale: .985;
+    --kcw-motion-delay: 0ms;
+
+    opacity: 0;
+    transform:
+        translate3d(var(--kcw-motion-x), var(--kcw-motion-y), 0)
+        scale(var(--kcw-motion-scale));
+    transition:
+        opacity .62s cubic-bezier(.2, .72, .24, 1) var(--kcw-motion-delay),
+        transform .76s cubic-bezier(.2, .72, .24, 1) var(--kcw-motion-delay);
+    will-change: opacity, transform;
+}
+
+.kcw-motion[data-kcw-motion="left"] {
+    --kcw-motion-x: -64px;
+    --kcw-motion-y: 0px;
+}
+
+.kcw-motion[data-kcw-motion="right"] {
+    --kcw-motion-x: 64px;
+    --kcw-motion-y: 0px;
+}
+
+.kcw-motion[data-kcw-motion="up"] {
+    --kcw-motion-x: 0px;
+    --kcw-motion-y: 46px;
+}
+
+.kcw-motion[data-kcw-motion="scale"] {
+    --kcw-motion-x: 0px;
+    --kcw-motion-y: 16px;
+    --kcw-motion-scale: .95;
+}
+
+.kcw-motion.is-visible {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+}
+
+/* Give the first visible page content a slightly more deliberate entrance. */
+.kcw-motion.kcw-motion-intro {
+    transition-duration: .72s, .86s;
+}
+
+/* Avoid motion changing the layout of interactive overlays. */
+.kcw-profile-dropdown,
+.kcw-alert-overlay,
+.kcw-alert-card,
+.kcw-glass-toast,
+.crop-modal,
+.crop-dialog {
+    will-change: auto;
+}
+
+@media (max-width: 650px) {
+    .kcw-motion[data-kcw-motion="left"],
+    .kcw-motion[data-kcw-motion="right"] {
+        --kcw-motion-x: 0px;
+        --kcw-motion-y: 34px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body:not(.staff-body) {
+        --kcw-pattern-parallax-y: 0px !important;
+    }
+
+    .kcw-motion,
+    .kcw-motion.is-visible {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+}

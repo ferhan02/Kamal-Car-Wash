@@ -1,0 +1,120 @@
+/*
+ * Kamal Car Wash — shared staff + landing motion layer
+ * Reversible scroll reveals, initial page entrance and subtle background parallax.
+ */
+
+:root {
+    --kcw-page-parallax-y: 0px;
+}
+
+body.staff-body {
+    overflow-x: clip;
+}
+
+body.staff-body::before {
+    background-position: center var(--kcw-page-parallax-y);
+}
+
+.kcw-motion {
+    --kcw-motion-x: 0px;
+    --kcw-motion-y: 42px;
+    --kcw-motion-scale: .985;
+    --kcw-motion-delay: 0ms;
+
+    opacity: 0;
+    transform:
+        translate3d(var(--kcw-motion-x), var(--kcw-motion-y), 0)
+        scale(var(--kcw-motion-scale));
+    transition:
+        opacity .62s cubic-bezier(.2, .72, .24, 1) var(--kcw-motion-delay),
+        transform .76s cubic-bezier(.2, .72, .24, 1) var(--kcw-motion-delay);
+    will-change: opacity, transform;
+}
+
+.kcw-motion[data-kcw-motion="left"] {
+    --kcw-motion-x: -64px;
+    --kcw-motion-y: 0px;
+}
+
+.kcw-motion[data-kcw-motion="right"] {
+    --kcw-motion-x: 64px;
+    --kcw-motion-y: 0px;
+}
+
+.kcw-motion[data-kcw-motion="up"] {
+    --kcw-motion-x: 0px;
+    --kcw-motion-y: 46px;
+}
+
+.kcw-motion[data-kcw-motion="scale"] {
+    --kcw-motion-x: 0px;
+    --kcw-motion-y: 16px;
+    --kcw-motion-scale: .95;
+}
+
+.kcw-motion.kcw-motion-intro {
+    transition-duration: .72s, .86s;
+}
+
+.kcw-motion.is-visible {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+}
+
+/* Keep overlays and floating UI unaffected by page reveal transforms. */
+.kcw-profile-dropdown,
+.kcw-alert-overlay,
+.kcw-alert-card,
+.kcw-glass-toast,
+.ios-toast,
+.crop-modal,
+.crop-dialog,
+.staff-mobile-dock {
+    will-change: auto;
+}
+
+/* Public landing page background and hero parallax. */
+body.kcw-landing-motion {
+    --kcw-index-pattern-y: 0px;
+    overflow-x: clip;
+    background-position:
+        center,
+        center var(--kcw-index-pattern-y);
+}
+
+body.kcw-landing-motion .landing-hero {
+    --kcw-index-hero-y: 0px;
+    background-position:
+        center,
+        center calc(50% + var(--kcw-index-hero-y));
+    background-size:
+        auto,
+        cover;
+}
+
+@media (max-width: 650px) {
+    .kcw-motion[data-kcw-motion="left"],
+    .kcw-motion[data-kcw-motion="right"] {
+        --kcw-motion-x: 0px;
+        --kcw-motion-y: 34px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.staff-body::before,
+    body.kcw-landing-motion {
+        --kcw-page-parallax-y: 0px !important;
+        --kcw-index-pattern-y: 0px !important;
+    }
+
+    body.kcw-landing-motion .landing-hero {
+        --kcw-index-hero-y: 0px !important;
+    }
+
+    .kcw-motion,
+    .kcw-motion.is-visible {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+}

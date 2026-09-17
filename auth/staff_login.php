@@ -37,7 +37,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['staff_email'] ?? '');
     $password = $_POST['staff_password'] ?? '';
 
-    $stmt = $conn->prepare('SELECT * FROM staff WHERE staff_email = ? LIMIT 1');
+    $stmt = $conn->prepare(
+        'SELECT * FROM staff WHERE staff_email = ? LIMIT 1'
+    );
     $stmt->execute([$email]);
     $staff = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -107,6 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="../css/staff.css">
     <link rel="stylesheet" href="../css/ui-polish.css">
+    <link rel="stylesheet" href="../css/motion.css">
     <link
         rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
@@ -356,6 +359,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     </style>
 </head>
+
 <body class="staff-body staff-login-page">
 
 <main class="login-shell">
@@ -477,6 +481,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </main>
 
 <script src="../js/staff.js"></script>
+<script src="../js/motion.js"></script>
+
 <script>
 const emailInput = document.getElementById('staff_email');
 const preview = document.getElementById('staffPreview');
@@ -515,5 +521,6 @@ function checkStaffEmail() {
 emailInput.addEventListener('input', checkStaffEmail);
 checkStaffEmail();
 </script>
+
 </body>
 </html>
