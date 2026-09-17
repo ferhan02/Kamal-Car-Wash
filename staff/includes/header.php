@@ -72,6 +72,13 @@ $admin_nav = [
 ];
 ?>
 
+<style>
+.staff-brand-logo {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+</style>
+
 <div class="staff-header-wrap">
     <header class="staff-header">
         <div class="staff-header-row">

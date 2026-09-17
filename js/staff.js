@@ -364,3 +364,33 @@
         });
     });
 })();
+
+/* Shared page-transition loader. */
+(() => {
+    const current = document.currentScript;
+
+    if (!current?.src || window.__kcwPageTransitionLoaderStarted) {
+        return;
+    }
+
+    window.__kcwPageTransitionLoaderStarted = true;
+
+    const cssHref = new URL('../css/page-transition.css', current.src).href;
+    const scriptSrc = new URL('page-transition.js', current.src).href;
+
+    if (!document.querySelector('link[data-kcw-page-transition]')) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = cssHref;
+        link.dataset.kcwPageTransition = 'true';
+        document.head.appendChild(link);
+    }
+
+    if (!document.querySelector('script[data-kcw-page-transition]')) {
+        const script = document.createElement('script');
+        script.src = scriptSrc;
+        script.defer = true;
+        script.dataset.kcwPageTransition = 'true';
+        document.head.appendChild(script);
+    }
+})();

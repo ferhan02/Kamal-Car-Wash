@@ -1,0 +1,219 @@
+/*
+ * Kamal Car Wash — staff readability refinement
+ * Loaded after staff.css and ui-polish.css.
+ * Improves light-mode contrast while preserving the visible car pattern.
+ */
+
+/* ---------------------------------------------------------
+   LIGHT MODE TEXT CONTRAST
+   --------------------------------------------------------- */
+
+html[data-theme="light"] {
+    --staff-text: #151a24;
+    --staff-muted: #475467;
+    --staff-border: rgba(60, 72, 90, .20);
+    --staff-surface-solid: #f8fafc;
+    --staff-surface-2: rgba(231, 236, 243, .97);
+}
+
+html[data-theme="light"] body.staff-body {
+    color: var(--staff-text);
+}
+
+html[data-theme="light"] .staff-page-heading p,
+html[data-theme="light"] .module-heading p,
+html[data-theme="light"] .stat-meta,
+html[data-theme="light"] .ios-helper,
+html[data-theme="light"] .month-title span,
+html[data-theme="light"] .advance-amount span,
+html[data-theme="light"] .advance-reason span {
+    color: #475467;
+}
+
+html[data-theme="light"] .staff-footer,
+html[data-theme="light"] .staff-footer a,
+html[data-theme="light"] .staff-footer-inner {
+    color: #475467;
+}
+
+/* ---------------------------------------------------------
+   CLEARER GLASS / CARD SURFACES
+   --------------------------------------------------------- */
+
+html[data-theme="light"] .ios-card {
+    background: rgba(248, 250, 253, .95);
+    border-color: rgba(60, 72, 90, .19);
+    box-shadow:
+        0 10px 28px rgba(28, 39, 55, .09),
+        inset 0 1px 0 rgba(255, 255, 255, .86);
+}
+
+html[data-theme="light"] .ios-card-solid,
+html[data-theme="light"] .ios-table-wrap {
+    background: rgba(248, 250, 253, .97);
+}
+
+html[data-theme="light"] .staff-header,
+html[data-theme="light"] .staff-admin-strip {
+    background: rgba(246, 249, 252, .94);
+}
+
+html[data-theme="light"] .attendance-row {
+    background: rgba(231, 236, 243, .96);
+}
+
+html[data-theme="light"] .advance-item {
+    background: rgba(248, 250, 253, .98);
+    border-color: rgba(60, 72, 90, .18);
+}
+
+html[data-theme="light"] .ios-input,
+html[data-theme="light"] .ios-select,
+html[data-theme="light"] .ios-textarea {
+    background: rgba(250, 252, 254, .98);
+}
+
+/* Keep the pattern visible around cards, not through their text. */
+html[data-theme="light"] .staff-main .ios-card {
+    backdrop-filter: blur(18px) saturate(115%);
+    -webkit-backdrop-filter: blur(18px) saturate(115%);
+}
+
+/* ---------------------------------------------------------
+   DATE / SMALL TEXT LEGIBILITY
+   --------------------------------------------------------- */
+
+html[data-theme="light"] .attendance-row > span:first-child {
+    color: #27364a;
+    font-weight: 650;
+}
+
+html[data-theme="light"] .advance-amount span {
+    color: #536176;
+    font-weight: 600;
+}
+
+html[data-theme="light"] .month-title span {
+    font-weight: 650;
+}
+
+html[data-theme="light"] .dashboard-hero .hero-copy .eyebrow {
+    border-color: rgba(255, 255, 255, .30);
+    background: rgba(6, 26, 47, .66);
+    color: #f8fbff;
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, .18),
+        inset 0 1px 0 rgba(255, 255, 255, .12);
+    text-shadow: 0 1px 8px rgba(0, 0, 0, .28);
+}
+
+/* ---------------------------------------------------------
+   SALARY ADVANCE — CURRENT LIMIT CARD
+   --------------------------------------------------------- */
+
+.limit-card {
+    position: relative;
+    overflow: hidden;
+    padding: 21px 22px !important;
+    border: 1px solid color-mix(
+        in srgb,
+        var(--staff-blue) 18%,
+        var(--staff-border)
+    ) !important;
+    background:
+        linear-gradient(
+            145deg,
+            color-mix(in srgb, var(--staff-blue-soft) 42%, var(--staff-surface-solid)),
+            color-mix(in srgb, var(--staff-surface-solid) 97%, transparent)
+        ) !important;
+    box-shadow: var(--staff-shadow-soft);
+}
+
+.limit-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 22px;
+    right: 22px;
+    height: 3px;
+    border-radius: 0 0 999px 999px;
+    background: linear-gradient(
+        90deg,
+        var(--staff-blue),
+        color-mix(in srgb, var(--staff-blue) 50%, transparent)
+    );
+}
+
+.limit-card > span:first-child {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--staff-blue);
+    font-size: .69rem;
+    font-weight: 850;
+    letter-spacing: .07em;
+}
+
+.limit-card > span:first-child::before {
+    content: "\f3d1";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+}
+
+.limit-card strong {
+    margin-top: 8px !important;
+    color: var(--staff-text);
+    font-size: 1.9rem !important;
+    line-height: 1.05;
+}
+
+.limit-card .progress {
+    height: 7px;
+    margin-top: 16px;
+    border: 1px solid var(--staff-border);
+    background: color-mix(
+        in srgb,
+        var(--staff-surface-2) 96%,
+        transparent
+    );
+}
+
+.limit-card .progress i {
+    box-shadow: 0 2px 9px color-mix(
+        in srgb,
+        var(--staff-blue) 25%,
+        transparent
+    );
+}
+
+.limit-card > span:last-child {
+    margin-top: 9px !important;
+    color: var(--staff-muted);
+    font-size: .71rem;
+    font-weight: 650;
+}
+
+/* Dark mode keeps the same hierarchy without becoming too bright. */
+html[data-theme="dark"] .limit-card {
+    background:
+        linear-gradient(
+            145deg,
+            color-mix(in srgb, var(--staff-blue-soft) 28%, var(--staff-surface-solid)),
+            color-mix(in srgb, var(--staff-surface-solid) 96%, transparent)
+        ) !important;
+}
+
+/* ---------------------------------------------------------
+   SMALL-SCREEN READABILITY
+   --------------------------------------------------------- */
+
+@media (max-width: 620px) {
+    .limit-card {
+        padding: 19px !important;
+    }
+
+    .limit-card::before {
+        left: 19px;
+        right: 19px;
+    }
+}

@@ -1,0 +1,237 @@
+/*
+ * Kamal Car Wash — shared page transition layer
+ * Fixed so alert/modal roots never participate in page transforms.
+ */
+
+:root {
+    --kcw-page-transition-duration: 240ms;
+    --kcw-page-transition-ease: cubic-bezier(.22, .78, .24, 1);
+}
+
+.kcw-page-transition-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    background: color-mix(in srgb, var(--surface-solid, #f4f7fa) 52%, transparent);
+    backdrop-filter: blur(9px) saturate(115%);
+    -webkit-backdrop-filter: blur(9px) saturate(115%);
+    transition:
+        opacity var(--kcw-page-transition-duration) ease,
+        visibility var(--kcw-page-transition-duration) ease;
+}
+
+.staff-body .kcw-page-transition-overlay {
+    background: color-mix(
+        in srgb,
+        var(--staff-surface-solid, #f8fafc) 48%,
+        transparent
+    );
+}
+
+html[data-theme="dark"] .kcw-page-transition-overlay {
+    background: rgba(12, 18, 28, .52);
+}
+
+.kcw-page-transition-line {
+    width: min(220px, 46vw);
+    height: 3px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: color-mix(
+        in srgb,
+        var(--primary, var(--staff-blue, #2f6fad)) 13%,
+        transparent
+    );
+    box-shadow: 0 7px 22px rgba(15, 23, 42, .10);
+}
+
+.kcw-page-transition-line::after {
+    content: "";
+    display: block;
+    width: 42%;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--primary, var(--staff-blue, #2f6fad));
+    transform: translateX(-120%);
+}
+
+html.kcw-page-leaving .kcw-page-transition-overlay {
+    opacity: 1;
+    visibility: visible;
+}
+
+html.kcw-page-leaving .kcw-page-transition-line::after {
+    animation: kcw-page-transition-line 520ms ease-in-out infinite;
+}
+
+/*
+ * IMPORTANT:
+ * Alert/modal containers are excluded from all page transforms.
+ * Transforming #kcw-alert-root changes the containing block for fixed
+ * descendants and was causing the sign-out modal to appear near the
+ * bottom of the document instead of centered in the viewport.
+ */
+html.kcw-page-transition-init body > :not(
+    script,
+    style,
+    link,
+    #kcw-alert-root,
+    .kcw-page-transition-overlay,
+    .kcw-alert-overlay,
+    .staff-alert-overlay,
+    .kcw-glass-toast,
+    .ios-toast,
+    .crop-modal,
+    .crop-dialog
+) {
+    opacity: 0;
+    transform: translateY(9px) scale(.997);
+}
+
+html.kcw-page-ready body > :not(
+    script,
+    style,
+    link,
+    #kcw-alert-root,
+    .kcw-page-transition-overlay,
+    .kcw-alert-overlay,
+    .staff-alert-overlay,
+    .kcw-glass-toast,
+    .ios-toast,
+    .crop-modal,
+    .crop-dialog
+) {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    transition:
+        opacity 380ms var(--kcw-page-transition-ease),
+        transform 440ms var(--kcw-page-transition-ease);
+}
+
+html.kcw-page-leaving body > :not(
+    script,
+    style,
+    link,
+    #kcw-alert-root,
+    .kcw-page-transition-overlay,
+    .kcw-alert-overlay,
+    .staff-alert-overlay,
+    .kcw-glass-toast,
+    .ios-toast,
+    .crop-modal,
+    .crop-dialog
+) {
+    opacity: 0;
+    transform: translateY(-7px) scale(.997);
+    transition:
+        opacity 190ms ease,
+        transform 230ms var(--kcw-page-transition-ease);
+}
+
+/* Keep customer alert host viewport-neutral at all times. */
+#kcw-alert-root {
+    position: static !important;
+    transform: none !important;
+    opacity: 1 !important;
+    transition: none !important;
+}
+
+@keyframes kcw-page-transition-line {
+    0% {
+        transform: translateX(-120%);
+    }
+
+    50% {
+        transform: translateX(140%);
+    }
+
+    100% {
+        transform: translateX(320%);
+    }
+}
+
+@view-transition {
+    navigation: auto;
+}
+
+::view-transition-old(root) {
+    animation: kcw-native-page-out 180ms ease both;
+}
+
+::view-transition-new(root) {
+    animation: kcw-native-page-in 320ms var(--kcw-page-transition-ease) both;
+}
+
+@keyframes kcw-native-page-out {
+    to {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+}
+
+@keyframes kcw-native-page-in {
+    from {
+        opacity: 0;
+        transform: translateY(7px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.kcw-page-transition-init body > :not(
+        script,
+        style,
+        link,
+        #kcw-alert-root,
+        .kcw-page-transition-overlay,
+        .kcw-alert-overlay,
+        .staff-alert-overlay,
+        .kcw-glass-toast,
+        .ios-toast,
+        .crop-modal,
+        .crop-dialog
+    ),
+    html.kcw-page-ready body > :not(
+        script,
+        style,
+        link,
+        #kcw-alert-root,
+        .kcw-page-transition-overlay,
+        .kcw-alert-overlay,
+        .staff-alert-overlay,
+        .kcw-glass-toast,
+        .ios-toast,
+        .crop-modal,
+        .crop-dialog
+    ),
+    html.kcw-page-leaving body > :not(
+        script,
+        style,
+        link,
+        #kcw-alert-root,
+        .kcw-page-transition-overlay,
+        .kcw-alert-overlay,
+        .staff-alert-overlay,
+        .kcw-glass-toast,
+        .ios-toast,
+        .crop-modal,
+        .crop-dialog
+    ) {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+
+    .kcw-page-transition-overlay {
+        display: none;
+    }
+
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation: none;
+    }
+}

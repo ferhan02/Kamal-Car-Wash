@@ -27,6 +27,7 @@ $page_title = $page_title ?? 'Staff Portal';
     <link rel="stylesheet" href="<?= $root_prefix ?>css/style.css">
     <link rel="stylesheet" href="<?= $root_prefix ?>css/staff.css">
     <link rel="stylesheet" href="<?= $root_prefix ?>css/ui-polish.css">
+    <link rel="stylesheet" href="<?= $root_prefix ?>css/staff-readability.css">
     <link rel="stylesheet" href="<?= $root_prefix ?>css/motion.css">
 
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
